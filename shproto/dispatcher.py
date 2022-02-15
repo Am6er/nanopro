@@ -107,8 +107,7 @@ def process_03(_command: str):
     shproto.dispatcher.command = _command
 
 
-def process_01():
-    filename = "/Users/amber/Documents/Git/nanopro/spectrum.csv"
+def process_01(filename):
     print("Start writing spectrum to file: {}".format(filename))
     fd = open(filename, "w")
     timer = 0

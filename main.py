@@ -2,6 +2,8 @@ import shproto.dispatcher
 import time
 import threading
 
+spec_file = "/Users/amber/Documents/Git/nanopro/spectrum.csv"
+
 
 def helptxt():
     print("""
@@ -37,7 +39,7 @@ if __name__ == '__main__':
                 helptxt()
                 continue
             if command == "spec_sta":
-                spec.start()
+                spec.start(spec_file)
                 continue
             if command == "spec_sto":
                 shproto.dispatcher.spec_stop()
