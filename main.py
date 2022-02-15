@@ -29,17 +29,19 @@ def helptxt():
             Show statistics while spectra gathering
         quit or exit
             Exits terminal
+            
+        Type serial number to use this device.
     """)
 
 
 if __name__ == '__main__':
     helptxt()
+    print("Found devices: {}".format(shproto.port.getallportsastext()))
     dispatcher = threading.Thread(target=shproto.dispatcher.start)
     dispatcher.start()
     time.sleep(1)
     spec = threading.Thread(target=shproto.dispatcher.process_01, args=(spec_file,))
     command = ""
-    sn = None
     while True:
         command = input(">> ")
         if command == "exit" or command == "quit":
@@ -54,6 +56,15 @@ if __name__ == '__main__':
                 continue
             if command == "spec_sto":
                 shproto.dispatcher.spec_stop()
+                continue
+            if command in shproto.port.getallportssn():
+                print("Connect to device: {}".format(shproto.port.getportbyserialnumber(command)))
+                shproto.dispatcher.stop()
+                with shproto.dispatcher.stopflag_lock:
+                    shproto.dispatcher.stopflag = 0
+                dispatcher = threading.Thread(target=shproto.dispatcher.start, args=(command,))
+                dispatcher.start()
+                time.sleep(1)
                 continue
             if command == "stat":
                 print(

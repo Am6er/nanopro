@@ -30,3 +30,4 @@ Type "help" for help:
             Show statistics while spectra gathering
         quit or exit
             Exits terminal
+        Type serial number to use this device.

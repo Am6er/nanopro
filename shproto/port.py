@@ -11,6 +11,14 @@ def getallports():
     return nanoports
 
 
+def getallportssn():
+    allports = getallports()
+    portssn = []
+    for port in allports:
+        portssn.append(port.serial_number)
+    return portssn
+
+
 def getallportsastext():
     allports = getallports()
     portsastext = []

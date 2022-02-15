@@ -25,8 +25,8 @@ lost_impulses = 0
 rx_arr = []
 
 
-def start():
-    nano = shproto.port.connectdevice()
+def start(sn=None):
+    nano = shproto.port.connectdevice(sn)
     response = shproto.packet()
     while not shproto.dispatcher.stopflag:
         response.clear()
@@ -34,7 +34,7 @@ def start():
         if len(shproto.dispatcher.command) > 1:
             print("Send comand: {}".format(command))
             if command == "-rst":
-                shproto.dispatcher.histogram = [0]*8192
+                shproto.dispatcher.histogram = [0] * 8192
             tx_packet = shproto.packet()
             tx_packet.cmd = shproto.MODE_TEXT
             tx_packet.start()
