@@ -19,14 +19,25 @@ def helptxt():
         -nos <number>
             Sets number adc value for peak detection (default value - 30).
             Lower number (for ex 12) - lowest energies peaks collected to histogram.
+            
+    Other common commands:
+        spec_sta
+            Start saving spectra to file
+        spec_sto
+            Stop saving spectra to file
+        stat
+            Show statistics while spectra gathering
+        quit or exit
+            Exits terminal
     """)
 
 
 if __name__ == '__main__':
+    helptxt()
     dispatcher = threading.Thread(target=shproto.dispatcher.start)
     dispatcher.start()
     time.sleep(1)
-    spec = threading.Thread(target=shproto.dispatcher.process_01)
+    spec = threading.Thread(target=shproto.dispatcher.process_01, args=(spec_file,))
     command = ""
     sn = None
     while True:
@@ -39,7 +50,7 @@ if __name__ == '__main__':
                 helptxt()
                 continue
             if command == "spec_sta":
-                spec.start(spec_file)
+                spec.start()
                 continue
             if command == "spec_sto":
                 shproto.dispatcher.spec_stop()

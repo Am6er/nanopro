@@ -1,10 +1,13 @@
+import threading
 import time
 
 import shproto
 import shproto.port
 
 stopflag = 0
+stopflag_lock = threading.Lock()
 spec_stopflag = 0
+spec_stopflag_lock = threading.Lock()
 
 histogram = [0] * 8192
 command = ""
@@ -96,11 +99,13 @@ def start():
 
 
 def stop():
-    shproto.dispatcher.stopflag = 1
+    with shproto.dispatcher.stopflag_lock:
+        shproto.dispatcher.stopflag = 1
 
 
 def spec_stop():
-    shproto.dispatcher.spec_stopflag = 1
+    with shproto.dispatcher.spec_stopflag_lock:
+        shproto.dispatcher.spec_stopflag = 1
 
 
 def process_03(_command: str):
@@ -111,7 +116,7 @@ def process_01(filename):
     print("Start writing spectrum to file: {}".format(filename))
     fd = open(filename, "w")
     timer = 0
-    while (not shproto.dispatcher.stopflag) or (not shproto.dispatcher.spec_stopflag):
+    while True:
         time.sleep(1)
         timer = timer + 1
         if timer == 5:
@@ -121,5 +126,7 @@ def process_01(filename):
             fd.flush()
             fd.truncate()
             timer = 0
+        if shproto.dispatcher.spec_stopflag or shproto.dispatcher.stopflag:
+            break
     fd.close()
     print("Stop collecting spectrum")
