@@ -31,3 +31,7 @@ Type "help" for help:
         quit or exit
             Exits terminal
         Type serial number to use this device.
+
+Example:
+
+![example usage](image/show.gif)
