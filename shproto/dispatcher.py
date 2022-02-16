@@ -10,7 +10,10 @@ spec_stopflag = 0
 spec_stopflag_lock = threading.Lock()
 
 histogram = [0] * 8192
+histogram_lock = threading.Lock()
+
 command = ""
+command_lock = threading.Lock()
 
 pkts01 = 0
 pkts03 = 0
@@ -26,6 +29,9 @@ rx_arr = []
 
 
 def start(sn=None):
+    shproto.dispatcher.clear()
+    with shproto.dispatcher.stopflag_lock:
+        shproto.dispatcher.stopflag = 0
     nano = shproto.port.connectdevice(sn)
     response = shproto.packet()
     while not shproto.dispatcher.stopflag:
@@ -42,7 +48,8 @@ def start(sn=None):
                 tx_packet.add(ord(command[i]))
             tx_packet.stop()
             nano.write(tx_packet.payload)
-            shproto.dispatcher.command = ""
+            with shproto.dispatcher.command_lock:
+                shproto.dispatcher.command = ""
             time.sleep(0.1)
         while nano.in_waiting > 0:
             rx_byte = nano.read()
@@ -66,15 +73,16 @@ def start(sn=None):
                 shproto.dispatcher.pkts01 += 1
                 offset = response.payload[0] & 0xFF | ((response.payload[1] & 0xFF) << 8)
                 count = int((response.len - 2) / 4)
-                for i in range(0, count):
-                    index = offset + i
-                    if index < len(shproto.dispatcher.histogram):
-                        value = (response.payload[i * 4 + 2]) | \
-                                ((response.payload[i * 4 + 3]) << 8) | \
-                                ((response.payload[i * 4 + 4]) << 16) | \
-                                ((response.payload[i * 4 + 5]) << 24)
-                        shproto.dispatcher.histogram[index] = value & 0x7FFFFFF
-                break
+                with shproto.dispatcher.histogram_lock:
+                    for i in range(0, count):
+                        index = offset + i
+                        if index < len(shproto.dispatcher.histogram):
+                            value = (response.payload[i * 4 + 2]) | \
+                                    ((response.payload[i * 4 + 3]) << 8) | \
+                                    ((response.payload[i * 4 + 4]) << 16) | \
+                                    ((response.payload[i * 4 + 5]) << 24)
+                            shproto.dispatcher.histogram[index] = value & 0x7FFFFFF
+                    break
             if response.cmd == shproto.MODE_STAT:
                 shproto.dispatcher.pkts04 += 1
                 shproto.dispatcher.total_time = (response.payload[0] & 0xFF) | \
@@ -98,6 +106,28 @@ def start(sn=None):
     nano.close()
 
 
+def process_01(filename):
+    print("Start writing spectrum to file: {}".format(filename))
+    fd = open(filename, "w")
+    timer = 0
+    with shproto.dispatcher.spec_stopflag_lock:
+        shproto.dispatcher.spec_stopflag = 0
+    while True:
+        time.sleep(1)
+        timer = timer + 1
+        if timer == 5:
+            fd.seek(0)
+            for i in range(0, 8192):
+                fd.writelines("{}, {}\r\n".format(i + 1, shproto.dispatcher.histogram[i]))
+            fd.flush()
+            fd.truncate()
+            timer = 0
+        if shproto.dispatcher.spec_stopflag or shproto.dispatcher.stopflag:
+            break
+    fd.close()
+    print("Stop collecting spectrum")
+
+
 def stop():
     with shproto.dispatcher.stopflag_lock:
         shproto.dispatcher.stopflag = 1
@@ -108,25 +138,19 @@ def spec_stop():
         shproto.dispatcher.spec_stopflag = 1
 
 
-def process_03(_command: str):
-    shproto.dispatcher.command = _command
+def process_03(_command):
+    with shproto.dispatcher.command_lock:
+        shproto.dispatcher.command = _command
 
 
-def process_01(filename):
-    print("Start writing spectrum to file: {}".format(filename))
-    fd = open(filename, "w")
-    timer = 0
-    while True:
-        time.sleep(1)
-        timer = timer + 1
-        if timer == 5:
-            fd.seek(0)
-            for i in range(0, 1300):
-                fd.writelines("{}, {}\r\n".format(i + 1, shproto.dispatcher.histogram[i]))
-            fd.flush()
-            fd.truncate()
-            timer = 0
-        if shproto.dispatcher.spec_stopflag or shproto.dispatcher.stopflag:
-            break
-    fd.close()
-    print("Stop collecting spectrum")
+def clear():
+    with shproto.dispatcher.histogram_lock:
+        shproto.dispatcher.histogram = [0] * 8192
+        shproto.dispatcher.pkts01 = 0
+        shproto.dispatcher.pkts03 = 0
+        shproto.dispatcher.pkts04 = 0
+        shproto.dispatcher.total_pkts = 0
+        shproto.dispatcher.cpu_load = 0
+        shproto.dispatcher.cps = 0
+        shproto.dispatcher.total_time = 0
+        shproto.dispatcher.lost_impulses = 0
