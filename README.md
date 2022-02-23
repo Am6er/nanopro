@@ -26,6 +26,10 @@ Type "help" for help:
             Start saving spectra to file
         spec_sto
             Stop saving spectra to file
+        alert_sta
+            Alert mode. Start writing individual spectra if cps > cps * ratio
+        alert_sto
+            Alert mode stop.
         stat
             Show statistics while spectra gathering
         quit or exit
