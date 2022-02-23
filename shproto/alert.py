@@ -23,9 +23,11 @@ def alertmode(spec_dir="/Users/amber/Documents/Git/nanopro/", cps_ratio=1.5):
     print("Collecting average cps, this will take about {} sec.".format(avg_cycles * avg_cycles_timeout))
     while count <= avg_cycles:
         with shproto.dispatcher.cps_lock:
-            if shproto.dispatcher.cps > 0:
-                cps_arr.append(shproto.dispatcher.cps)
-                super.avg_cps = statistics.median(cps_arr)
+            current_cps = shproto.dispatcher.cps
+        if current_cps > 0:
+            cps_arr.append(current_cps)
+            super.avg_cps = statistics.median(cps_arr)
+            count += 1
         time.sleep(avg_cycles_timeout)
     print("Average cps collected: {}, starting alert mode.".format(super.avg_cps))
     cur_relax_cycles = 0
