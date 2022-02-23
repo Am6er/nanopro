@@ -66,8 +66,10 @@ if __name__ == '__main__':
                 continue
             if command == "alert_sta":
                 alert.start()
+                continue
             if command == "alert_sto":
                 shproto.alert.stop()
+                continue
             if command in shproto.port.getallportssn():
                 print("Connect to device: {}".format(shproto.port.getportbyserialnumber(command)))
                 shproto.dispatcher.stop()
