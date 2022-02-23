@@ -23,6 +23,7 @@ total_pkts = 0
 total_time = 0
 cpu_load = 0
 cps = 0
+cps_lock = threading.Lock()
 lost_impulses = 0
 
 rx_arr = []

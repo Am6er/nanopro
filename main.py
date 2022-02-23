@@ -1,8 +1,10 @@
 import shproto.dispatcher
+import shproto.alert
 import time
 import threading
 
-spec_file = "/Users/amber/Documents/Git/nanopro/spectrum.csv"
+spec_dir = "/Users/amber/Documents/Git/nanopro/"
+spec_file = spec_dir + "spectrum.csv"
 
 
 def helptxt():
@@ -25,6 +27,10 @@ def helptxt():
             Start saving spectra to file
         spec_sto
             Stop saving spectra to file
+        alert_sta
+            Alert mode. Start writing individual spectra if cps > cps * ratio
+        alert_sto
+            Alert mode stop.
         stat
             Show statistics while spectra gathering
         quit or exit
@@ -41,6 +47,7 @@ if __name__ == '__main__':
     dispatcher.start()
     time.sleep(1)
     spec = threading.Thread(target=shproto.dispatcher.process_01, args=(spec_file,))
+    alert = threading.Thread(target=shproto.alert.alertmode, args=(spec_dir, 1.5,))
     command = ""
     while True:
         command = input(">> ")
@@ -57,6 +64,10 @@ if __name__ == '__main__':
             if command == "spec_sto":
                 shproto.dispatcher.spec_stop()
                 continue
+            if command == "alert_sta":
+                alert.start()
+            if command == "alert_sto":
+                shproto.alert.stop()
             if command in shproto.port.getallportssn():
                 print("Connect to device: {}".format(shproto.port.getportbyserialnumber(command)))
                 shproto.dispatcher.stop()
