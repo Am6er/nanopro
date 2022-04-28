@@ -101,7 +101,7 @@ def start(sn=None):
                                                        ((response.payload[12] & 0xFF) << 16) | \
                                                        ((response.payload[13] & 0xFF) << 24)
                 break
-            print("Wtf recieved: cmd:{}\r\npayload: {}".format(response.cmd, response.payload))
+            print("Wtf received: cmd:{}\r\npayload: {}".format(response.cmd, response.payload))
         response.clear()
         time.sleep(0.1)
     nano.close()
