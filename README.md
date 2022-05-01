@@ -6,6 +6,14 @@ Worked on Mac OS, Linux, Windows..
 Requirements:
 `pip3 install pyserial`
 
+On Debian/Ubuntu add user to input, uucp groups and reboot:
+`sudo usermod -aG uucp $USER && sudo usermod -aG input $USER`
+
+On Astra Linux Special Edition add user to dialout group and reboot:
+`sudo usermod -aG dialout $USER`
+
+
+
 Type "help" for help:
 
     Some non-hazardous commands for text mode:
