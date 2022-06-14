@@ -52,7 +52,7 @@ def start(sn=None):
             nano.flushInput()
             with shproto.dispatcher.command_lock:
                 shproto.dispatcher.command = ""
-            time.sleep(0.01)
+            time.sleep(0.1)
         while nano.in_waiting > 0:
             rx_byte = nano.read()
             shproto.dispatcher.rx_arr.append(rx_byte.hex())
@@ -104,7 +104,7 @@ def start(sn=None):
                 break
             print("Wtf received: cmd:{}\r\npayload: {}".format(response.cmd, response.payload))
         response.clear()
-        time.sleep(0.01)
+        #time.sleep(1)
     nano.close()
 
 
