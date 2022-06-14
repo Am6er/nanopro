@@ -104,7 +104,7 @@ def start(sn=None):
                 break
             print("Wtf received: cmd:{}\r\npayload: {}".format(response.cmd, response.payload))
         response.clear()
-        #time.sleep(1)
+        time.sleep(0.05)
     nano.close()
 
 
