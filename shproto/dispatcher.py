@@ -39,7 +39,7 @@ def start(sn=None):
         response.clear()
         shproto.dispatcher.rx_arr = []
         if len(shproto.dispatcher.command) > 1:
-            print("Send comand: {}".format(command))
+            print("Send command: {}".format(command))
             if command == "-rst":
                 shproto.dispatcher.histogram = [0] * 8192
             tx_packet = shproto.packet()
@@ -103,7 +103,7 @@ def start(sn=None):
                 break
             print("Wtf received: cmd:{}\r\npayload: {}".format(response.cmd, response.payload))
         response.clear()
-        time.sleep(0.1)
+        #time.sleep(0.6)
     nano.close()
 
 
