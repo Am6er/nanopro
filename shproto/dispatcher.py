@@ -49,9 +49,10 @@ def start(sn=None):
                 tx_packet.add(ord(command[i]))
             tx_packet.stop()
             nano.write(tx_packet.payload)
+            nano.flushInput()
             with shproto.dispatcher.command_lock:
                 shproto.dispatcher.command = ""
-            time.sleep(0.1)
+            time.sleep(0.01)
         while nano.in_waiting > 0:
             rx_byte = nano.read()
             shproto.dispatcher.rx_arr.append(rx_byte.hex())
@@ -103,7 +104,7 @@ def start(sn=None):
                 break
             print("Wtf received: cmd:{}\r\npayload: {}".format(response.cmd, response.payload))
         response.clear()
-        #time.sleep(0.6)
+        time.sleep(0.01)
     nano.close()
 
 
