@@ -19,14 +19,13 @@ pkts01 = 0
 pkts03 = 0
 pkts04 = 0
 total_pkts = 0
+dropped = 0
 
 total_time = 0
 cpu_load = 0
 cps = 0
 cps_lock = threading.Lock()
 lost_impulses = 0
-
-rx_arr = []
 
 
 def start(sn=None):
@@ -37,7 +36,7 @@ def start(sn=None):
     response = shproto.packet()
     while not shproto.dispatcher.stopflag:
         response.clear()
-        shproto.dispatcher.rx_arr = []
+        rx_arr = []
         if len(shproto.dispatcher.command) > 1:
             print("Send command: {}".format(command))
             if command == "-rst":
@@ -52,15 +51,19 @@ def start(sn=None):
             nano.flushInput()
             with shproto.dispatcher.command_lock:
                 shproto.dispatcher.command = ""
-            time.sleep(0.1)
+            time.sleep(1)
         while nano.in_waiting > 0:
             rx_byte = nano.read()
-            shproto.dispatcher.rx_arr.append(rx_byte.hex())
+            rx_arr.append(rx_byte)
             rx_int = int.from_bytes(rx_byte, byteorder='little')
             response.read(rx_int)
+            if response.dropped:
+                shproto.dispatcher.dropped = shproto.dispatcher.dropped + 1
+                # print("Dropped packet:\r\n{}".format(rx_arr))
             if not response.ready:
                 continue
             response.ready = 0
+            rx_arr = []
             shproto.dispatcher.total_pkts += 1
             if response.cmd == shproto.MODE_TEXT:
                 shproto.dispatcher.pkts03 += 1
@@ -104,7 +107,7 @@ def start(sn=None):
                 break
             print("Wtf received: cmd:{}\r\npayload: {}".format(response.cmd, response.payload))
         response.clear()
-        time.sleep(0.05)
+        time.sleep(0.1)
     nano.close()
 
 
@@ -152,6 +155,7 @@ def clear():
         shproto.dispatcher.pkts03 = 0
         shproto.dispatcher.pkts04 = 0
         shproto.dispatcher.total_pkts = 0
+        shproto.dispatcher.dropped = 0
         shproto.dispatcher.cpu_load = 0
         shproto.dispatcher.cps = 0
         shproto.dispatcher.total_time = 0

@@ -24,23 +24,21 @@ class packet:
     payload = []
     crc = 0xFFFF
     cmd = 0x00
-
     ready = 0
-    complete = 0
     len = 0
     esc = 0
     buffer_size = 4096
+    dropped = 0
 
     def clear(self):
         self.payload = []
         self.crc = 0xFFFF
         self.cmd = 0x00
-
         self.ready = 0
-        self.complete = 0
         self.len = 0
         self.esc = 0
         self.buffer_size = 4096
+        self.dropped = 0
 
     def add(self, tx_byte):
         if self.len >= self.buffer_size:
@@ -72,28 +70,27 @@ class packet:
         return self.len
 
     def read(self, rx_byte):
-        if rx_byte == SHPROTO_START:
+        if rx_byte == SHPROTO_START and self.esc == 0:
             self.clear()
-            self.complete = 0
-            self.len = 0
-            self.esc = 0
-            self.crc = 0xFFFF
             return
-        if rx_byte == SHPROTO_ESC:
+        if rx_byte == SHPROTO_ESC and self.esc == 0:
             self.esc = 1
             return
-        if rx_byte == SHPROTO_FINISH:
-            if not self.crc:
+        if rx_byte == SHPROTO_FINISH and self.esc == 0:
+            if self.crc == 0:
                 self.len = self.len - 3  # minus command (1 byte) and crc16 (2 bytes)
                 self.ready = 1
                 return
+            else:
+                self.dropped = 1
         if self.esc:
             self.esc = 0
-        if self.len:
-            self.payload.append(rx_byte)
-        else:
-            self.cmd = rx_byte
+            rx_byte = (~ rx_byte) & 0xFF
         if self.len < self.buffer_size:
+            if self.len > 0:
+                self.payload.append(rx_byte)
+            else:
+                self.cmd = rx_byte
             self.len = self.len + 1
             self.crc = crc16(self.crc, rx_byte)
         return
