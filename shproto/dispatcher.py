@@ -115,7 +115,7 @@ def process_01(filename):
         shproto.dispatcher.spec_stopflag = 0
     while True:
         time.sleep(1)
-        timer = timer + 1
+        timer += 1
         if timer == 5:
             fd.seek(0)
             for i in range(0, 8192):

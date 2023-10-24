@@ -11,8 +11,8 @@ MODE_BOOTLOADER = 0xF3
 
 
 def crc16(crc: int, data: bytes):
-    crc = crc ^ int(data)
-    for i in range(8):
+    crc ^= int(data)
+    for _ in range(8):
         if (crc & 0x0001) != 0:
             crc = ((crc >> 1) ^ 0xA001)
         else:
@@ -52,7 +52,7 @@ class packet:
             self.len = len(self.payload)
         else:
             self.payload.append(tx_byte)
-            self.len = self.len + 1
+            self.len += 1
 
     def start(self):
         self.len = 0
@@ -84,16 +84,16 @@ class packet:
             return
         if rx_byte == SHPROTO_FINISH:
             if not self.crc:
-                self.len = self.len - 3  # minus command (1 byte) and crc16 (2 bytes)
+                self.len -= 3  # minus command (1 byte) and crc16 (2 bytes)
                 self.ready = 1
                 return
         if self.esc:
             self.esc = 0
+            rx_byte = ~rx_byte
         if self.len:
             self.payload.append(rx_byte)
         else:
             self.cmd = rx_byte
         if self.len < self.buffer_size:
-            self.len = self.len + 1
+            self.len += 1
             self.crc = crc16(self.crc, rx_byte)
-        return
