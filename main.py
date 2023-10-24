@@ -81,11 +81,15 @@ if __name__ == '__main__':
                 continue
             if command == "stat":
                 print(
-                    "Histograms 0x01: {}, Commands 0x03: {}, Commands 0x04: {}, Total: {}".format(
+                    "Histograms 0x01: {}, Commands 0x03: {}, Commands 0x04: {}, Total packets: {}, Dropped packets: {}"
+                    .format(
                         shproto.dispatcher.pkts01,
                         shproto.dispatcher.pkts03,
                         shproto.dispatcher.pkts04,
-                        shproto.dispatcher.total_pkts))
+                        shproto.dispatcher.total_pkts,
+                        shproto.dispatcher.dropped
+                    )
+                )
                 print("Total time: {}, cps: {}, cpu_load: {}, lost_imp: {}".format(shproto.dispatcher.total_time,
                                                                                    shproto.dispatcher.cps,
                                                                                    shproto.dispatcher.cpu_load,
