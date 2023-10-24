@@ -58,7 +58,7 @@ def start(sn=None):
             rx_int = int.from_bytes(rx_byte, byteorder='little')
             response.read(rx_int)
             if response.dropped:
-                shproto.dispatcher.dropped = shproto.dispatcher.dropped + 1
+                shproto.dispatcher.dropped += 1
                 # print("Dropped packet:\r\n{}".format(rx_arr))
             if not response.ready:
                 continue
