@@ -34,8 +34,6 @@ def start(sn=None):
     nano = shproto.port.connectdevice(sn)
     response = shproto.packet()
     while not shproto.dispatcher.stopflag:
-        response.clear()
-        rx_arr = []
         if len(shproto.dispatcher.command) > 1:
             print("Send command: {}".format(command))
             if command == "-rst":
@@ -53,24 +51,21 @@ def start(sn=None):
             time.sleep(1)
         while nano.in_waiting > 0:
             rx_byte = nano.read()
-            rx_arr.append(rx_byte)
             rx_int = int.from_bytes(rx_byte, byteorder='little')
             response.read(rx_int)
             if not response.ready:
                 continue
-            response.ready = 0
-            rx_arr = []
             shproto.dispatcher.total_pkts += 1
             if response.cmd == shproto.MODE_TEXT:
                 shproto.dispatcher.pkts03 += 1
                 resp_decoded = bytes(response.payload[:len(response.payload) - 2])
                 try:
                     resp_decoded = resp_decoded.decode("ascii")
-                except Exception:
+                except UnicodeDecodeError:
                     print("Unknown non-text response.")
                 print("<< {}".format(resp_decoded))
-                break
-            if response.cmd == shproto.MODE_HISTOGRAM:
+                response.clear()
+            elif response.cmd == shproto.MODE_HISTOGRAM:
                 shproto.dispatcher.pkts01 += 1
                 offset = response.payload[0] & 0xFF | ((response.payload[1] & 0xFF) << 8)
                 count = int((response.len - 2) / 4)
@@ -83,8 +78,8 @@ def start(sn=None):
                                     ((response.payload[i * 4 + 4]) << 16) | \
                                     ((response.payload[i * 4 + 5]) << 24)
                             shproto.dispatcher.histogram[index] = value & 0x7FFFFFF
-                    break
-            if response.cmd == shproto.MODE_STAT:
+                response.clear()
+            elif response.cmd == shproto.MODE_STAT:
                 shproto.dispatcher.pkts04 += 1
                 shproto.dispatcher.total_time = (response.payload[0] & 0xFF) | \
                                                 ((response.payload[1] & 0xFF) << 8) | \
@@ -100,9 +95,10 @@ def start(sn=None):
                                                        ((response.payload[11] & 0xFF) << 8) | \
                                                        ((response.payload[12] & 0xFF) << 16) | \
                                                        ((response.payload[13] & 0xFF) << 24)
-                break
-            print("Wtf received: cmd:{}\r\npayload: {}".format(response.cmd, response.payload))
-        response.clear()
+                response.clear()
+            else:
+                print("Wtf received: cmd:{}\r\npayload: {}".format(response.cmd, response.payload))
+                response.clear()
         time.sleep(0.1)
     nano.close()
 

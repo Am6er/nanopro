@@ -1,14 +1,14 @@
 import shproto.port
 
-SHPROTO_START = (0xFE | 0x80)
-SHPROTO_ESC = (0xFD | 0x80)
-SHPROTO_FINISH = (0xA5 | 0x80)
-BUFFER_SIZE = 65535
+SHPROTO_START = (0xFE | 0x80)  # 254
+SHPROTO_ESC = (0xFD | 0x80)  # 253
+SHPROTO_FINISH = (0xA5 | 0x80)  # 165
+BUFFER_SIZE = 4096
 MODE_HISTOGRAM = 0x01
 MODE_OSCILO = 0x02
 MODE_TEXT = 0x03
 MODE_STAT = 0x04
-MODE_BOOTLOADER = 0xF3
+MODE_BOOTLOADER = 0xF3  # 243
 
 
 def crc16(crc: int, data: bytes):
@@ -23,6 +23,7 @@ def crc16(crc: int, data: bytes):
 
 class packet:
     payload = []
+    raw_data = []
     crc = 0xFFFF
     cmd = 0x00
     ready = 0
@@ -31,8 +32,8 @@ class packet:
 
     def clear(self):
         self.payload = []
+        self.raw_data = []
         self.crc = 0xFFFF
-        # self.cmd = 0x00
         self.ready = 0
         self.len = 0
         self.esc = 0
@@ -67,7 +68,10 @@ class packet:
         return self.len
 
     def read(self, rx_byte):
+        self.raw_data.append(rx_byte)
         if rx_byte == SHPROTO_START:
+            # if self.ready == 0:
+            # print("Dropped cmd {} len {}: {}\r\n{}".format(self.cmd, self.len, self.raw_data, self.payload))
             self.clear()
             return
         if rx_byte == SHPROTO_ESC:
@@ -80,7 +84,7 @@ class packet:
             return
         if self.esc:
             self.esc = 0
-            rx_byte = ~rx_byte
+            rx_byte = (~rx_byte) & 0xFF
         if self.len:
             self.payload.append(rx_byte)
         else:
