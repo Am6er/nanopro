@@ -19,7 +19,6 @@ pkts01 = 0
 pkts03 = 0
 pkts04 = 0
 total_pkts = 0
-dropped = 0
 
 total_time = 0
 cpu_load = 0
@@ -57,9 +56,6 @@ def start(sn=None):
             rx_arr.append(rx_byte)
             rx_int = int.from_bytes(rx_byte, byteorder='little')
             response.read(rx_int)
-            if response.dropped:
-                shproto.dispatcher.dropped += 1
-                # print("Dropped packet:\r\n{}".format(rx_arr))
             if not response.ready:
                 continue
             response.ready = 0
@@ -155,7 +151,6 @@ def clear():
         shproto.dispatcher.pkts03 = 0
         shproto.dispatcher.pkts04 = 0
         shproto.dispatcher.total_pkts = 0
-        shproto.dispatcher.dropped = 0
         shproto.dispatcher.cpu_load = 0
         shproto.dispatcher.cps = 0
         shproto.dispatcher.total_time = 0
