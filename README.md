@@ -44,6 +44,8 @@ Type "help" for help:
             Exits terminal
         Type serial number to use this device.
 
+Also, you can run gnuplot to view spectrum.csv data:```gnuplot -geometry 4000x4000 -p gnuplot.plot ```
+
 Example:
 
 ![example usage](image/show.gif)

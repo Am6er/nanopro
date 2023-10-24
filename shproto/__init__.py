@@ -3,6 +3,7 @@ import shproto.port
 SHPROTO_START = (0xFE | 0x80)
 SHPROTO_ESC = (0xFD | 0x80)
 SHPROTO_FINISH = (0xA5 | 0x80)
+BUFFER_SIZE = 65535
 MODE_HISTOGRAM = 0x01
 MODE_OSCILO = 0x02
 MODE_TEXT = 0x03
@@ -27,19 +28,17 @@ class packet:
     ready = 0
     len = 0
     esc = 0
-    buffer_size = 4096
 
     def clear(self):
         self.payload = []
         self.crc = 0xFFFF
-        self.cmd = 0x00
+        # self.cmd = 0x00
         self.ready = 0
         self.len = 0
         self.esc = 0
-        self.buffer_size = 4096
 
     def add(self, tx_byte):
-        if self.len >= self.buffer_size:
+        if self.len >= BUFFER_SIZE:
             return
         self.crc = crc16(self.crc, tx_byte)
         if tx_byte == SHPROTO_START or tx_byte == SHPROTO_FINISH or tx_byte == SHPROTO_ESC:
@@ -61,7 +60,7 @@ class packet:
         _crc = self.crc
         self.add(_crc & 0xFF)
         self.add(_crc >> 8)
-        if self.len >= self.buffer_size:
+        if self.len >= BUFFER_SIZE:
             return 0
         self.payload.append(SHPROTO_FINISH)
         self.len = len(self.payload)
@@ -86,6 +85,6 @@ class packet:
             self.payload.append(rx_byte)
         else:
             self.cmd = rx_byte
-        if self.len < self.buffer_size:
+        if self.len < BUFFER_SIZE:
             self.len += 1
             self.crc = crc16(self.crc, rx_byte)
