@@ -104,7 +104,6 @@ def start(sn=None):
 
 
 def process_01(filename):
-    print("Start writing spectrum to file: {}".format(filename))
     fd = open(filename, "w")
     timer = 0
     with shproto.dispatcher.spec_stopflag_lock:
@@ -113,11 +112,13 @@ def process_01(filename):
         time.sleep(1)
         timer += 1
         if timer == 5:
+            print("Start writing spectrum to file: {}".format(filename))
             fd.seek(0)
             for i in range(0, 8192):
                 fd.writelines("{}, {}\r\n".format(i + 1, shproto.dispatcher.histogram[i]))
             fd.flush()
             fd.truncate()
+            print("Finish writing spectrum to file: {}".format(filename))
             timer = 0
         if shproto.dispatcher.spec_stopflag or shproto.dispatcher.stopflag:
             break
