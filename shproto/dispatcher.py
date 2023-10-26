@@ -4,6 +4,8 @@ import time
 import shproto
 import shproto.port
 
+NANO_WAIT_TIMEOUT = 0.001  # Timeout for waiting new data from device
+
 stopflag = 0
 stopflag_lock = threading.Lock()
 spec_stopflag = 0
@@ -19,6 +21,7 @@ pkts01 = 0
 pkts03 = 0
 pkts04 = 0
 total_pkts = 0
+dropped = 0
 
 total_time = 0
 cpu_load = 0
@@ -48,11 +51,13 @@ def start(sn=None):
             nano.flushInput()
             with shproto.dispatcher.command_lock:
                 shproto.dispatcher.command = ""
-            time.sleep(1)
+            time.sleep(NANO_WAIT_TIMEOUT)
         while nano.in_waiting > 0:
             rx_byte = nano.read()
             rx_int = int.from_bytes(rx_byte, byteorder='little')
             response.read(rx_int)
+            if response.dropped:
+                shproto.dispatcher.dropped += 1
             if not response.ready:
                 continue
             shproto.dispatcher.total_pkts += 1
@@ -99,30 +104,26 @@ def start(sn=None):
             else:
                 print("Wtf received: cmd:{}\r\npayload: {}".format(response.cmd, response.payload))
                 response.clear()
-        time.sleep(0.1)
+        time.sleep(NANO_WAIT_TIMEOUT)
     nano.close()
 
 
 def process_01(filename):
-    fd = open(filename, "w")
     timer = 0
+    print("Start writing spectrum to file: {}".format(filename))
     with shproto.dispatcher.spec_stopflag_lock:
         shproto.dispatcher.spec_stopflag = 0
-    while True:
-        time.sleep(1)
+    while not (shproto.dispatcher.spec_stopflag or shproto.dispatcher.stopflag):
         timer += 1
+        time.sleep(1)
         if timer == 5:
-            print("Start writing spectrum to file: {}".format(filename))
-            fd.seek(0)
-            for i in range(0, 8192):
-                fd.writelines("{}, {}\r\n".format(i + 1, shproto.dispatcher.histogram[i]))
-            fd.flush()
-            fd.truncate()
-            print("Finish writing spectrum to file: {}".format(filename))
             timer = 0
-        if shproto.dispatcher.spec_stopflag or shproto.dispatcher.stopflag:
-            break
-    fd.close()
+            with open(filename, "w") as fd:
+                fd.seek(0)
+                for i in range(0, 8192):
+                    fd.writelines("{}, {}\n".format(i + 1, shproto.dispatcher.histogram[i]))
+                fd.flush()
+                fd.truncate()
     print("Stop collecting spectrum")
 
 
@@ -152,3 +153,4 @@ def clear():
         shproto.dispatcher.cps = 0
         shproto.dispatcher.total_time = 0
         shproto.dispatcher.lost_impulses = 0
+        shproto.dispatcher.dropped = 0

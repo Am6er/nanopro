@@ -29,6 +29,7 @@ class packet:
     ready = 0
     len = 0
     esc = 0
+    dropped = 0
 
     def clear(self):
         self.payload = []
@@ -37,6 +38,7 @@ class packet:
         self.ready = 0
         self.len = 0
         self.esc = 0
+        self.dropped = 0
 
     def add(self, tx_byte):
         if self.len >= BUFFER_SIZE:
@@ -70,8 +72,6 @@ class packet:
     def read(self, rx_byte):
         self.raw_data.append(rx_byte)
         if rx_byte == SHPROTO_START:
-            # if self.ready == 0:
-            # print("Dropped cmd {} len {}: {}\r\n{}".format(self.cmd, self.len, self.raw_data, self.payload))
             self.clear()
             return
         if rx_byte == SHPROTO_ESC:
@@ -81,6 +81,10 @@ class packet:
             self.len -= 3  # minus command (1 byte) and crc16 (2 bytes)
             if not self.crc:
                 self.ready = 1
+            else:
+                self.dropped = 1
+                # print("Dropped cmd {} len {} crc {}\n raw data: {}\n payload: {}\n\n"
+                #       .format(self.cmd, self.len, self.crc, self.raw_data, self.payload))
             return
         if self.esc:
             self.esc = 0
