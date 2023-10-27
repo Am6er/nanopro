@@ -85,8 +85,8 @@ class packet:
                 self.ready = 1
             else:
                 self.dropped = 1
-                print("Dropped cmd {} len {} crc {}\n raw data: {}\n payload: {}\n\n"
-                      .format(self.cmd, self.len, self.crc, self.raw_data, self.payload))
+                # print("Dropped cmd {} len {} crc {}\n raw data: {}\n payload: {}\n\n"
+                #      .format(self.cmd, self.len, self.crc, self.raw_data, self.payload))
             self.raw_data = []
             return
         if self.esc:

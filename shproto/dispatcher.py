@@ -5,7 +5,7 @@ import time
 import shproto
 import shproto.port
 
-NANO_WAIT_TIMEOUT = 0.8  # Timeout for waiting new data from device
+NANO_WAIT_TIMEOUT = 0.01  # Timeout for waiting new data from device
 
 stopflag = 0
 stopflag_lock = threading.Lock()
