@@ -1,10 +1,11 @@
+import sys
 import threading
 import time
 
 import shproto
 import shproto.port
 
-NANO_WAIT_TIMEOUT = 0.001  # Timeout for waiting new data from device
+NANO_WAIT_TIMEOUT = 0.8  # Timeout for waiting new data from device
 
 stopflag = 0
 stopflag_lock = threading.Lock()
@@ -53,11 +54,11 @@ def start(sn=None):
                 shproto.dispatcher.command = ""
             time.sleep(NANO_WAIT_TIMEOUT)
         while nano.in_waiting > 0:
-            rx_byte = nano.read()
-            rx_int = int.from_bytes(rx_byte, byteorder='little')
-            response.read(rx_int)
+            rx_byte = nano.read(size=1)
+            response.read(rx_byte)
             if response.dropped:
                 shproto.dispatcher.dropped += 1
+                shproto.dispatcher.total_pkts += 1
             if not response.ready:
                 continue
             shproto.dispatcher.total_pkts += 1

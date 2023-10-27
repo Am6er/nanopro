@@ -1,8 +1,10 @@
+from struct import unpack
+
 import shproto.port
 
-SHPROTO_START = (0xFE | 0x80)  # 254
-SHPROTO_ESC = (0xFD | 0x80)  # 253
-SHPROTO_FINISH = (0xA5 | 0x80)  # 165
+SHPROTO_START = 0xFE  # 254
+SHPROTO_ESC = 0xFD  # 253
+SHPROTO_FINISH = 0xA5  # 165
 BUFFER_SIZE = 4096
 MODE_HISTOGRAM = 0x01
 MODE_OSCILO = 0x02
@@ -11,8 +13,8 @@ MODE_STAT = 0x04
 MODE_BOOTLOADER = 0xF3  # 243
 
 
-def crc16(crc: int, data: bytes):
-    crc ^= int(data)
+def crc16(crc, data):
+    crc ^= data
     for _ in range(8):
         if (crc & 0x0001) != 0:
             crc = ((crc >> 1) ^ 0xA001)
@@ -33,7 +35,6 @@ class packet:
 
     def clear(self):
         self.payload = []
-        self.raw_data = []
         self.crc = 0xFFFF
         self.ready = 0
         self.len = 0
@@ -71,6 +72,7 @@ class packet:
 
     def read(self, rx_byte):
         self.raw_data.append(rx_byte)
+        rx_byte = unpack("<B", rx_byte)[0]
         if rx_byte == SHPROTO_START:
             self.clear()
             return
@@ -83,8 +85,9 @@ class packet:
                 self.ready = 1
             else:
                 self.dropped = 1
-                # print("Dropped cmd {} len {} crc {}\n raw data: {}\n payload: {}\n\n"
-                #       .format(self.cmd, self.len, self.crc, self.raw_data, self.payload))
+                print("Dropped cmd {} len {} crc {}\n raw data: {}\n payload: {}\n\n"
+                      .format(self.cmd, self.len, self.crc, self.raw_data, self.payload))
+            self.raw_data = []
             return
         if self.esc:
             self.esc = 0
