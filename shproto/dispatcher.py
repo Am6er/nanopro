@@ -5,7 +5,7 @@ import time
 import shproto
 import shproto.port
 
-NANO_WAIT_TIMEOUT = 0.0001  # Timeout for waiting new data from device
+NANO_WAIT_TIMEOUT = 0.01  # Timeout for waiting new data from device
 
 stopflag = 0
 stopflag_lock = threading.Lock()
@@ -54,58 +54,59 @@ def start(sn=None):
                 shproto.dispatcher.command = ""
             time.sleep(NANO_WAIT_TIMEOUT)
         while nano.in_waiting > 0:
-            rx_byte = nano.read(size=1)
-            response.read(rx_byte)
-            if response.dropped:
-                shproto.dispatcher.dropped += 1
+            rx_byte_arr = nano.read(size=nano.in_waiting)
+            time.sleep(NANO_WAIT_TIMEOUT)
+            for rx_byte in rx_byte_arr:
+                response.read(rx_byte)
+                if response.dropped:
+                    shproto.dispatcher.dropped += 1
+                    shproto.dispatcher.total_pkts += 1
+                if not response.ready:
+                    continue
                 shproto.dispatcher.total_pkts += 1
-            if not response.ready:
-                continue
-            shproto.dispatcher.total_pkts += 1
-            if response.cmd == shproto.MODE_TEXT:
-                shproto.dispatcher.pkts03 += 1
-                resp_decoded = bytes(response.payload[:len(response.payload) - 2])
-                try:
-                    resp_decoded = resp_decoded.decode("ascii")
-                except UnicodeDecodeError:
-                    print("Unknown non-text response.")
-                print("<< {}".format(resp_decoded))
-                response.clear()
-            elif response.cmd == shproto.MODE_HISTOGRAM:
-                shproto.dispatcher.pkts01 += 1
-                offset = response.payload[0] & 0xFF | ((response.payload[1] & 0xFF) << 8)
-                count = int((response.len - 2) / 4)
-                with shproto.dispatcher.histogram_lock:
-                    for i in range(0, count):
-                        index = offset + i
-                        if index < len(shproto.dispatcher.histogram):
-                            value = (response.payload[i * 4 + 2]) | \
-                                    ((response.payload[i * 4 + 3]) << 8) | \
-                                    ((response.payload[i * 4 + 4]) << 16) | \
-                                    ((response.payload[i * 4 + 5]) << 24)
-                            shproto.dispatcher.histogram[index] = value & 0x7FFFFFF
-                response.clear()
-            elif response.cmd == shproto.MODE_STAT:
-                shproto.dispatcher.pkts04 += 1
-                shproto.dispatcher.total_time = (response.payload[0] & 0xFF) | \
-                                                ((response.payload[1] & 0xFF) << 8) | \
-                                                ((response.payload[2] & 0xFF) << 16) | \
-                                                ((response.payload[3] & 0xFF) << 24)
-                shproto.dispatcher.cpu_load = (response.payload[4] & 0xFF) | ((response.payload[5] & 0xFF) << 8)
-                shproto.dispatcher.cps = (response.payload[6] & 0xFF) | \
-                                         ((response.payload[7] & 0xFF) << 8) | \
-                                         ((response.payload[8] & 0xFF) << 16) | \
-                                         ((response.payload[9] & 0xFF) << 24)
-                if response.len >= (15 + 2):
-                    shproto.dispatcher.lost_impulses = (response.payload[10] & 0xFF) | \
-                                                       ((response.payload[11] & 0xFF) << 8) | \
-                                                       ((response.payload[12] & 0xFF) << 16) | \
-                                                       ((response.payload[13] & 0xFF) << 24)
-                response.clear()
-            else:
-                print("Wtf received: cmd:{}\r\npayload: {}".format(response.cmd, response.payload))
-                response.clear()
-        time.sleep(NANO_WAIT_TIMEOUT)
+                if response.cmd == shproto.MODE_TEXT:
+                    shproto.dispatcher.pkts03 += 1
+                    resp_decoded = bytes(response.payload[:len(response.payload) - 2])
+                    try:
+                        resp_decoded = resp_decoded.decode("ascii")
+                    except UnicodeDecodeError:
+                        print("Unknown non-text response.")
+                    print("<< {}".format(resp_decoded))
+                    response.clear()
+                elif response.cmd == shproto.MODE_HISTOGRAM:
+                    shproto.dispatcher.pkts01 += 1
+                    offset = response.payload[0] & 0xFF | ((response.payload[1] & 0xFF) << 8)
+                    count = int((response.len - 2) / 4)
+                    with shproto.dispatcher.histogram_lock:
+                        for i in range(0, count):
+                            index = offset + i
+                            if index < len(shproto.dispatcher.histogram):
+                                value = (response.payload[i * 4 + 2]) | \
+                                        ((response.payload[i * 4 + 3]) << 8) | \
+                                        ((response.payload[i * 4 + 4]) << 16) | \
+                                        ((response.payload[i * 4 + 5]) << 24)
+                                shproto.dispatcher.histogram[index] = value & 0x7FFFFFF
+                    response.clear()
+                elif response.cmd == shproto.MODE_STAT:
+                    shproto.dispatcher.pkts04 += 1
+                    shproto.dispatcher.total_time = (response.payload[0] & 0xFF) | \
+                                                    ((response.payload[1] & 0xFF) << 8) | \
+                                                    ((response.payload[2] & 0xFF) << 16) | \
+                                                    ((response.payload[3] & 0xFF) << 24)
+                    shproto.dispatcher.cpu_load = (response.payload[4] & 0xFF) | ((response.payload[5] & 0xFF) << 8)
+                    shproto.dispatcher.cps = (response.payload[6] & 0xFF) | \
+                                             ((response.payload[7] & 0xFF) << 8) | \
+                                             ((response.payload[8] & 0xFF) << 16) | \
+                                             ((response.payload[9] & 0xFF) << 24)
+                    if response.len >= (15 + 2):
+                        shproto.dispatcher.lost_impulses = (response.payload[10] & 0xFF) | \
+                                                           ((response.payload[11] & 0xFF) << 8) | \
+                                                           ((response.payload[12] & 0xFF) << 16) | \
+                                                           ((response.payload[13] & 0xFF) << 24)
+                    response.clear()
+                else:
+                    print("Wtf received: cmd:{}\r\npayload: {}".format(response.cmd, response.payload))
+                    response.clear()
     nano.close()
 
 

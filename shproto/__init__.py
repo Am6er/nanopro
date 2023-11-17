@@ -72,7 +72,7 @@ class packet:
 
     def read(self, rx_byte):
         self.raw_data.append(rx_byte)
-        rx_byte = unpack("<B", rx_byte)[0]
+        # rx_byte = unpack("<B", rx_byte)[0]
         if rx_byte == SHPROTO_START:
             self.clear()
             return
