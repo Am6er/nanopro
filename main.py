@@ -80,6 +80,10 @@ if __name__ == '__main__':
                 time.sleep(1)
                 continue
             if command == "stat":
+                if shproto.dispatcher.total_pkts == 0:
+                    percent = 0
+                else:
+                    percent = round(100 * shproto.dispatcher.dropped / shproto.dispatcher.total_pkts, 2)
                 print(
                     "Histograms 0x01: {}, Commands 0x03: {}, Commands 0x04: {}, Total packets: {},"
                     " Dropped packets: {} ({})%"
@@ -89,7 +93,7 @@ if __name__ == '__main__':
                         shproto.dispatcher.pkts04,
                         shproto.dispatcher.total_pkts,
                         shproto.dispatcher.dropped,
-                        round(100 * shproto.dispatcher.dropped / shproto.dispatcher.total_pkts, 2)
+                        percent
                     )
                 )
                 print("Total time: {}, cps: {}, cpu_load: {}, lost_imp: {}".format(shproto.dispatcher.total_time,

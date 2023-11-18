@@ -30,7 +30,7 @@ lost_impulses = 0
 
 
 def start(sn=None):
-    READ_BUFFER = 1024
+    READ_BUFFER = 1
     shproto.dispatcher.clear()
     with shproto.dispatcher.stopflag_lock:
         shproto.dispatcher.stopflag = 0
@@ -40,7 +40,7 @@ def start(sn=None):
         if len(shproto.dispatcher.command) > 1:
             print("Send command: {}".format(command))
             if command == "-rst":
-                shproto.dispatcher.histogram = [0] * 8192
+                shproto.dispatcher.clear()
             tx_packet = shproto.packet()
             tx_packet.cmd = shproto.MODE_TEXT
             tx_packet.start()
@@ -50,6 +50,9 @@ def start(sn=None):
             nano.write(tx_packet.payload)
             with shproto.dispatcher.command_lock:
                 shproto.dispatcher.command = ""
+        if nano.in_waiting == 0:
+            time.sleep(0.1)
+            continue
         READ_BUFFER = max(nano.in_waiting, READ_BUFFER)
         rx_byte_arr = nano.read(size=READ_BUFFER)
         for rx_byte in rx_byte_arr:
