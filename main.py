@@ -63,12 +63,14 @@ if __name__ == '__main__':
                 continue
             if command == "spec_sto":
                 shproto.dispatcher.spec_stop()
+                spec = threading.Thread(target=shproto.dispatcher.process_01, args=(spec_file,))
                 continue
             if command == "alert_sta":
                 alert.start()
                 continue
             if command == "alert_sto":
                 shproto.alert.stop()
+                alert = threading.Thread(target=shproto.alert.alertmode, args=(spec_dir, 1.5,))
                 continue
             if command in shproto.port.getallportssn():
                 print("Connect to device: {}".format(shproto.port.getportbyserialnumber(command)))
