@@ -47,7 +47,9 @@ if __name__ == '__main__':
     dispatcher.start()
     time.sleep(1)
     spec = threading.Thread(target=shproto.dispatcher.process_01, args=(spec_file,))
+    shproto.dispatcher.spec_stopflag = 1
     alert = threading.Thread(target=shproto.alert.alertmode, args=(spec_dir, 1.5,))
+    shproto.alert.alert_stop = 1
     command = ""
     while True:
         command = input(">> ")
@@ -59,6 +61,9 @@ if __name__ == '__main__':
                 helptxt()
                 continue
             if command == "spec_sta":
+                if shproto.dispatcher.spec_stopflag == 0:
+                    print("Collecting thread allready running")
+                    continue
                 spec.start()
                 continue
             if command == "spec_sto":
@@ -66,6 +71,9 @@ if __name__ == '__main__':
                 spec = threading.Thread(target=shproto.dispatcher.process_01, args=(spec_file,))
                 continue
             if command == "alert_sta":
+                if shproto.alert.alert_stop == 0:
+                    print("Alert thread allready running")
+                    continue
                 alert.start()
                 continue
             if command == "alert_sto":
