@@ -3,7 +3,8 @@ import shproto.alert
 import time
 import threading
 
-spec_dir = "/home/amber/Git/nanopro/"
+# spec_dir = "/home/amber/Git/nanopro/"
+spec_dir = "/home/bag/nanopro/"
 spec_file = spec_dir + "spectrum.csv"
 
 

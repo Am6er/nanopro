@@ -52,4 +52,6 @@ def connectdevice(sn=None):
         print("!!! Error. Could not found nano connected.")
         exit(0)
     tty = serial.Serial(nanoport, baudrate=600000, bytesize=8, parity='N', stopbits=1, timeout=1)
+    # tty = serial.Serial(nanoport, baudrate=115200, bytesize=8, parity='N', stopbits=1, timeout=1)
+    # tty = serial.Serial(nanoport, baudrate=38400, bytesize=8, parity='N', stopbits=1, timeout=1)
     return tty
