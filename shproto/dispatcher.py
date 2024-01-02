@@ -128,8 +128,10 @@ def start(sn=None):
                 response.clear()
             elif response.cmd == shproto.MODE_PULSE:
                 if pulse_file_opened != 1:
-                    fd_pulses = open("/home/bag/nanopro/pulses.csv", "w+")
-                    print("file /home/bag/nanopro/pulses.csv open return", fd_pulses)
+                    # fd_pulses = open("/home/bag/nanopro/pulses.csv", "w+")
+                    fd_pulses = open("/tmp/pulses.csv", "w+")
+                    # print("file /home/bag/nanopro/pulses.csv open return", fd_pulses)
+                    print("file /tmp/pulses.csv open return", fd_pulses)
                     pulse_file_opened = 1
 
                 #print("<< got pulse", fd_pulses)
@@ -212,7 +214,7 @@ def process_01(filename):
                 # 1.2MHz fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(0, 2.21E-06, 0.316, -2))
                 # 1.2MHz fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(0, 1.61E-06, 0.3185, -7.64))
                 # 1.2MHz fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(0, 1.8E-06, 0.3185, -7.64))
-                fd.writelines("remark, elapsed: {:5d}s/{:.2f}H cps: {:7.2f} total_pulses: {} total_pkts: {} lost: {}\n".format(shproto.dispatcher.total_time, shproto.dispatcher.total_time/3600., spec_pulses_total_cps, spec_pulses_total, shproto.dispatcher.total_pkts, shproto.dispatcher.lost_impulses))
+                fd.writelines("remark, elapsed: {:5d}s/{:.2f}H/{:.2f}m cps: {:7.2f} total_pulses: {} total_pkts: {} lost: {}\n".format(shproto.dispatcher.total_time, shproto.dispatcher.total_time/3600., shproto.dispatcher.total_time/60., spec_pulses_total_cps, spec_pulses_total, shproto.dispatcher.total_pkts, shproto.dispatcher.lost_impulses))
                 if shproto.dispatcher.inf_str != "":
                     fd.writelines("remark, inf: {}".format(shproto.dispatcher.inf_str))
                 fd.writelines("livetime, {}\n".format(shproto.dispatcher.total_time))

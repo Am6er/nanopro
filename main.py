@@ -2,9 +2,11 @@ import shproto.dispatcher
 import shproto.alert
 import time
 import threading
+import re
 
 # spec_dir = "/home/amber/Git/nanopro/"
-spec_dir = "/home/bag/nanopro/"
+# spec_dir = "/home/bag/nanopro/"
+spec_dir = "/Users/bag/Dropbox/spectrum/nanopro/"
 spec_file = spec_dir + "spectrum.csv"
 
 
@@ -86,12 +88,22 @@ if __name__ == '__main__':
                 shproto.alert.stop()
                 alert = threading.Thread(target=shproto.alert.alertmode, args=(spec_dir, 1.5,))
                 continue
+            if m := re.search("^spd\s+(\S+)", command):
+                shproto.port.port_speed = m.group(1)
+                print("port speed set to {}... reconnect".format(shproto.port.port_speed))
+                shproto.dispatcher.stop()
+                with shproto.dispatcher.stopflag_lock:
+                    shproto.dispatcher.stopflag = 0
+                dispatcher = threading.Thread(target=shproto.dispatcher.start)
+                dispatcher.start()
+                time.sleep(1)
+                continue
+                continue
             if command in shproto.port.getallportssn():
                 print("Connect to device: {}".format(shproto.port.getportbyserialnumber(command)))
                 shproto.dispatcher.stop()
                 with shproto.dispatcher.stopflag_lock:
                     shproto.dispatcher.stopflag = 0
-                dispatcher = threading.Thread(target=shproto.dispatcher.start, args=(command,))
                 dispatcher.start()
                 time.sleep(1)
                 continue
