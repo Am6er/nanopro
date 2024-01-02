@@ -2,6 +2,9 @@ import sys
 import threading
 import time
 from datetime import datetime, timezone, timedelta
+from struct import *
+import binascii
+import re
 
 import shproto
 import shproto.port
@@ -29,6 +32,9 @@ cps = 0
 cps_lock = threading.Lock()
 lost_impulses = 0
 total_pulse_width = 0
+serial_number = 0;
+calibration = [0., 1., 0., 0., 0.]
+inf_str = ''
 
 
 def start(sn=None):
@@ -70,11 +76,39 @@ def start(sn=None):
                 print("<< got text")
                 shproto.dispatcher.pkts03 += 1
                 resp_decoded = bytes(response.payload[:len(response.payload) - 2])
+                resp_lines = []
                 try:
                     resp_decoded = resp_decoded.decode("ascii")
+                    resp_lines = resp_decoded.splitlines()
+                    if re.search('^VERSION', resp_decoded):
+                        shproto.dispatcher.inf_str = resp_decoded
+                        shproto.dispatcher.inf_str = re.sub(r'\[[^]]*\]', '...', shproto.dispatcher.inf_str, count = 2)
                 except UnicodeDecodeError:
                     print("Unknown non-text response.")
                 print("<< {}".format(resp_decoded))
+                if len(resp_lines) == 40:
+                    shproto.dispatcher.serial_number = resp_lines[39];
+                    print("got detectonr serial num: {}".format(shproto.dispatcher.serial_number))
+                    b_str =  ''
+                    for b in resp_lines[0:10]:
+                        b_str += b
+                    #crc = hex(binascii.crc32(bytearray(b_str, 'ascii')) % 2**32)
+                    crc = binascii.crc32(bytearray(b_str, 'ascii')) % 2**32
+
+                    if (crc == int(resp_lines[10],16)):
+                        shproto.dispatcher.calibration[0] = unpack('d', int((resp_lines[0] + resp_lines[1]),16).to_bytes(8, 'little'))[0]
+                        shproto.dispatcher.calibration[1] = unpack('d', int((resp_lines[2] + resp_lines[3]),16).to_bytes(8, 'little'))[0]
+                        shproto.dispatcher.calibration[2] = unpack('d', int((resp_lines[4] + resp_lines[5]),16).to_bytes(8, 'little'))[0]
+                        shproto.dispatcher.calibration[3] = unpack('d', int((resp_lines[6] + resp_lines[7]),16).to_bytes(8, 'little'))[0]
+                        shproto.dispatcher.calibration[4] = unpack('d', int((resp_lines[8] + resp_lines[9]),16).to_bytes(8, 'little'))[0]
+                        print("got calibration: {}".format(shproto.dispatcher.calibration)
+                            )
+                    #
+                    else:
+                        print("wrong crc for calibration values got: {:08x} expected: {:08x}".format(int(resp_lines[10],16), crc))
+                    #
+                    #
+	
                 response.clear()
             elif response.cmd == shproto.MODE_HISTOGRAM:
                 #print("<< got histogram")
@@ -169,14 +203,22 @@ def process_01(filename):
 
                 # 1MHz fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(0, 2.98307E-06, 0.378484, -9.78218))
                 # fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(0, 1.364E-06, 0.386, -12))	# 1MHz r7 f7 n14 
-                fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(0, 2.127E-06, 0.3827, -8.5))	# 1MHz r7 f7 n14 NoTHR
+                # fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(0, 2.127E-06, 0.3827, -8.5))	# 1MHz r7 f7 n14 NoTHR
+                fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(
+                    shproto.dispatcher.calibration[3],
+                    shproto.dispatcher.calibration[2],
+                    shproto.dispatcher.calibration[1],
+                    shproto.dispatcher.calibration[0]))
                 # 1.2MHz fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(0, 2.21E-06, 0.316, -2))
                 # 1.2MHz fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(0, 1.61E-06, 0.3185, -7.64))
                 # 1.2MHz fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(0, 1.8E-06, 0.3185, -7.64))
-                fd.writelines("remark, elapsed: {:5d} cps: {:7.2f} total_pulses: {} total_pkts: {} lost: {}\n".format(shproto.dispatcher.total_time, spec_pulses_total_cps, spec_pulses_total, shproto.dispatcher.total_pkts, shproto.dispatcher.lost_impulses))
+                fd.writelines("remark, elapsed: {:5d}s/{:.2f}H cps: {:7.2f} total_pulses: {} total_pkts: {} lost: {}\n".format(shproto.dispatcher.total_time, shproto.dispatcher.total_time/3600., spec_pulses_total_cps, spec_pulses_total, shproto.dispatcher.total_pkts, shproto.dispatcher.lost_impulses))
+                if shproto.dispatcher.inf_str != "":
+                    fd.writelines("remark, inf: {}".format(shproto.dispatcher.inf_str))
                 fd.writelines("livetime, {}\n".format(shproto.dispatcher.total_time))
                 fd.writelines("realtime, {}\n".format(shproto.dispatcher.total_time))
-                fd.writelines("detectorname,nano15-8k\nSerialNumber,nano15-8k\n")
+                fd.writelines("detectorname,nano15-8k-{}\nSerialNumber,nano15-8k-{}\n".format(
+                    shproto.dispatcher.serial_number,shproto.dispatcher.serial_number))
                 fd.writelines("starttime, {}\n".format(spec_timestamp.strftime("%Y-%m-%dT%H:%M:%S+00:00")))
                 fd.writelines("ch,data\n")
 

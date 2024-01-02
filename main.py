@@ -62,6 +62,11 @@ if __name__ == '__main__':
                 helptxt()
                 continue
             if command == "spec_sta":
+                shproto.dispatcher.process_03("-cal")
+                time.sleep(2)
+                shproto.dispatcher.process_03("-inf")
+                time.sleep(1)
+                shproto.dispatcher.process_03("-sta")
                 if shproto.dispatcher.spec_stopflag == 0:
                     print("Collecting thread allready running")
                     continue
