@@ -54,8 +54,13 @@ if __name__ == '__main__':
     alert = threading.Thread(target=shproto.alert.alertmode, args=(spec_dir, 1.5,))
     shproto.alert.alert_stop = 1
     command = ""
+    auto_command = "spec_sta"
     while True:
-        command = input(">> ")
+        if auto_command != "":
+            command = auto_command
+            auto_command = ""
+        else:
+            command = input(">> ")
         if command == "exit" or command == "quit":
             shproto.dispatcher.stop()
             exit(0)
@@ -88,8 +93,8 @@ if __name__ == '__main__':
                 shproto.alert.stop()
                 alert = threading.Thread(target=shproto.alert.alertmode, args=(spec_dir, 1.5,))
                 continue
-            if m := re.search("^spd\s+(\S+)", command):
-                shproto.port.port_speed = m.group(1)
+            if m := re.search("^(spd|speed)\s+(\S+)", command):
+                shproto.port.port_speed = m.group(2)
                 print("port speed set to {}... reconnect".format(shproto.port.port_speed))
                 shproto.dispatcher.stop()
                 with shproto.dispatcher.stopflag_lock:

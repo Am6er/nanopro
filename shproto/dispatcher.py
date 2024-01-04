@@ -32,7 +32,7 @@ cps = 0
 cps_lock = threading.Lock()
 lost_impulses = 0
 total_pulse_width = 0
-serial_number = 0;
+serial_number = ""
 calibration = [0., 1., 0., 0., 0.]
 inf_str = ''
 
@@ -88,7 +88,7 @@ def start(sn=None):
                 print("<< {}".format(resp_decoded))
                 if len(resp_lines) == 40:
                     shproto.dispatcher.serial_number = resp_lines[39];
-                    print("got detectonr serial num: {}".format(shproto.dispatcher.serial_number))
+                    print("got detector serial num: {}".format(shproto.dispatcher.serial_number))
                     b_str =  ''
                     for b in resp_lines[0:10]:
                         b_str += b
@@ -148,7 +148,7 @@ def start(sn=None):
                     fd_pulses.writelines("{:d} ".format(value & 0x7FFFFFF))
                 fd_pulses.writelines("\n")
                 fd_pulses.flush()
-                print("len: ", count, "shape: ", pulse)
+                # print("len: ", count, "shape: ", pulse)
                 response.clear()
             elif response.cmd == shproto.MODE_STAT:
                 # print("<< got stat")
