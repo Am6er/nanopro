@@ -1,6 +1,7 @@
 import serial
 import serial.tools.list_ports
 import shproto
+import re
 
 port_speed = 600000
 
@@ -8,7 +9,8 @@ def getallports():
     allports = serial.tools.list_ports.comports()
     nanoports = []
     for port in allports:
-        if port.manufacturer == "FTDI":
+        if port.manufacturer == "FTDI" or re.search("^/dev/ttyUSB.*", port.device):
+            #print("getallports: {}".format(port.device))
             nanoports.append(port)
     return nanoports
 
@@ -26,6 +28,7 @@ def getallportsastext():
     portsastext = []
     for port in allports:
         portsastext.append([port.serial_number, port.device])
+        # print("getallportsastext: port: {} {} {}".format(port, port.serial_number, port.device));
     return portsastext
 
 
@@ -57,5 +60,5 @@ def connectdevice(sn=None):
     # tty = serial.Serial(nanoport, baudrate=600000, bytesize=8, parity='N', stopbits=1, timeout=1)
     # tty = serial.Serial(nanoport, baudrate=115200, bytesize=8, parity='N', stopbits=1, timeout=1)
     tty = serial.Serial(nanoport, baudrate=shproto.port.port_speed, bytesize=8, parity='N', stopbits=1, timeout=1)
-    # tty = serial.Serial(nanoport, baudrate=38400, bytesize=8, parity='N', stopbits=1, timeout=1)
+    # tty = serial.Serial(nanoport, baudrate=38400, bytesize=8, parity='N', stopbits=1, timeout=0.05)
     return tty

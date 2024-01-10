@@ -5,7 +5,7 @@ import shproto.port
 SHPROTO_START = 0xFE  # 254
 SHPROTO_ESC = 0xFD  # 253
 SHPROTO_FINISH = 0xA5  # 165
-BUFFER_SIZE = 4096
+BUFFER_SIZE = 8192
 MODE_HISTOGRAM = 0x01
 MODE_PULSE = 0x02
 MODE_TEXT = 0x03
@@ -85,6 +85,11 @@ class packet:
                 self.ready = 1
             else:
                 self.dropped = 1
+                inf_str = ''
+                if self.len > 2:
+                    inf_str = " H offset: {}".format(self.payload[0] & 0xFF | ((self.payload[1] & 0xFF) << 8))
+                # print("Dropped cmd {} len {} crc {:04x}{}"
+                #     .format(self.cmd, self.len, self.crc, inf_str))
                 # print("Dropped cmd {} len {} crc {}\n raw data: {}\n payload: {}\n\n"
                 #      .format(self.cmd, self.len, self.crc, self.raw_data, self.payload))
             self.raw_data = []

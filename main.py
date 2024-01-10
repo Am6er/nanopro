@@ -5,8 +5,8 @@ import threading
 import re
 
 # spec_dir = "/home/amber/Git/nanopro/"
-# spec_dir = "/home/bag/nanopro/"
-spec_dir = "/Users/bag/Dropbox/spectrum/nanopro/"
+spec_dir = "/home/bag/nanopro/"
+# spec_dir = "/Users/bag/Dropbox/spectrum/nanopro/"
 spec_file = spec_dir + "spectrum.csv"
 
 
@@ -68,6 +68,13 @@ if __name__ == '__main__':
             if command == "help":
                 helptxt()
                 continue
+            if command == "rst":
+                shproto.dispatcher.process_03("-rst")
+                time.sleep(2)
+                shproto.dispatcher.process_03("-cal")
+                time.sleep(2)
+                shproto.dispatcher.process_03("-inf")
+                continue
             if command == "spec_sta":
                 shproto.dispatcher.process_03("-cal")
                 time.sleep(2)
@@ -102,7 +109,6 @@ if __name__ == '__main__':
                 dispatcher = threading.Thread(target=shproto.dispatcher.start)
                 dispatcher.start()
                 time.sleep(1)
-                continue
                 continue
             if command in shproto.port.getallportssn():
                 print("Connect to device: {}".format(shproto.port.getportbyserialnumber(command)))

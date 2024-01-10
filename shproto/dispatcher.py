@@ -39,7 +39,10 @@ inf_str = ''
 
 def start(sn=None):
     pulse_file_opened = 2
-    READ_BUFFER = 1
+    # READ_BUFFER = 1
+    # READ_BUFFER = 2048
+    READ_BUFFER = 2048
+    # READ_BUFFER = 8192
     shproto.dispatcher.clear()
     with shproto.dispatcher.stopflag_lock:
         shproto.dispatcher.stopflag = 0
@@ -60,10 +63,11 @@ def start(sn=None):
             with shproto.dispatcher.command_lock:
                 shproto.dispatcher.command = ""
         if nano.in_waiting == 0:
-            time.sleep(0.1)
+            time.sleep(0.05)
             continue
         READ_BUFFER = max(nano.in_waiting, READ_BUFFER)
         rx_byte_arr = nano.read(size=READ_BUFFER)
+        # print("rx_byte_arr len = {}/{}".format(len(rx_byte_arr),READ_BUFFER))
         for rx_byte in rx_byte_arr:
             response.read(rx_byte)
             if response.dropped:
@@ -197,9 +201,10 @@ def process_01(filename):
             spec_timestamp = datetime.now(timezone.utc) - + timedelta(seconds=shproto.dispatcher.total_time)
             if shproto.dispatcher.total_time > 0:
                 spec_pulses_total_cps = float(spec_pulses_total) / float(shproto.dispatcher.total_time)
-            print("elapsed: {} cps: {}/{:.2f} total_pkts: {} lost: {} cpu: {}".format(
+            print("elapsed: {} cps: {}/{:.2f} total_pkts: {} drop_pkts: {} lostImp: {} cpu: {}".format(
                shproto.dispatcher.total_time, shproto.dispatcher.cps, spec_pulses_total_cps,
-               shproto.dispatcher.total_pkts, shproto.dispatcher.lost_impulses, shproto.dispatcher.cpu_load))
+               shproto.dispatcher.total_pkts, shproto.dispatcher.dropped,
+               shproto.dispatcher.lost_impulses, shproto.dispatcher.cpu_load))
             with open(filename, "w") as fd:
                 fd.seek(0)
 
@@ -214,7 +219,14 @@ def process_01(filename):
                 # 1.2MHz fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(0, 2.21E-06, 0.316, -2))
                 # 1.2MHz fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(0, 1.61E-06, 0.3185, -7.64))
                 # 1.2MHz fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(0, 1.8E-06, 0.3185, -7.64))
-                fd.writelines("remark, elapsed: {:5d}s/{:.2f}H/{:.2f}m cps: {:7.2f} total_pulses: {} total_pkts: {} lost: {}\n".format(shproto.dispatcher.total_time, shproto.dispatcher.total_time/3600., shproto.dispatcher.total_time/60., spec_pulses_total_cps, spec_pulses_total, shproto.dispatcher.total_pkts, shproto.dispatcher.lost_impulses))
+                fd.writelines(
+                    "remark, elapsed: {:d}H:{:02d}m/{:5d}s/{:.2f}m cps: {:7.2f} total_pulses: {} total_pkts: {} drop_pkts: {} lostImp: {}\n".format(
+                        int(shproto.dispatcher.total_time/3600), int((shproto.dispatcher.total_time%3600)/60),
+                        shproto.dispatcher.total_time, 
+                        shproto.dispatcher.total_time/60.,
+                        spec_pulses_total_cps, spec_pulses_total, shproto.dispatcher.total_pkts,
+                        shproto.dispatcher.dropped, shproto.dispatcher.lost_impulses
+                        ))
                 if shproto.dispatcher.inf_str != "":
                     fd.writelines("remark, inf: {}".format(shproto.dispatcher.inf_str))
                 fd.writelines("livetime, {}\n".format(shproto.dispatcher.total_time))
