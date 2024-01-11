@@ -247,7 +247,7 @@ def process_01(filename):
                shproto.dispatcher.total_pkts, shproto.dispatcher.dropped,
                shproto.dispatcher.lost_impulses, shproto.dispatcher.cpu_load,
                shproto.dispatcher.pulses_debug_count))
-    if (fd_pulses):
+    if (shproto.dispatcher.pulse_file_opened == 1):
         fd_pulses.close()
         shproto.dispatcher.pulse_file_opened = 0
 
