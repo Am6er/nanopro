@@ -3,11 +3,14 @@ import shproto.alert
 import time
 import threading
 import re
+from datetime import datetime, timezone, timedelta
 
 # spec_dir = "/home/amber/Git/nanopro/"
 spec_dir = "/home/bag/nanopro/"
 # spec_dir = "/Users/bag/Dropbox/spectrum/nanopro/"
 spec_file = spec_dir + "spectrum.csv"
+
+shproto.dispatcher.start_timestamp = datetime.now(timezone.utc)
 
 
 def helptxt():

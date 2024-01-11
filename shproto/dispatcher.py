@@ -41,7 +41,7 @@ pulses_buf = []
 pulse_file_opened = 0
 pulses_debug_count = 0
 
-
+start_timestamp = datetime.now(timezone.utc)
 
 def start(sn=None):
     shproto.dispatcher.pulse_file_opened = 2
@@ -188,19 +188,13 @@ def process_01(filename):
         time.sleep(1)
         if timer == 5:
             timer = 0
-            for i in range(0,len(shproto.dispatcher.histogram)-1):
-                shproto.dispatcher.histogram[i] = shproto.dispatcher.histogram[i] & 0x7FFFFFF
+            #for i in range(0,len(shproto.dispatcher.histogram)-1):
+            #    shproto.dispatcher.histogram[i] = shproto.dispatcher.histogram[i] & 0x7FFFFFF
             spec_pulses_total = sum(shproto.dispatcher.histogram)
             spec_pulses_total_cps = 0
-            spec_timestamp = datetime.now(timezone.utc) - + timedelta(seconds=shproto.dispatcher.total_time)
+            spec_timestamp = datetime.now(timezone.utc) - timedelta(seconds=shproto.dispatcher.total_time)
             if shproto.dispatcher.total_time > 0:
                 spec_pulses_total_cps = float(spec_pulses_total) / float(shproto.dispatcher.total_time)
-            shproto.dispatcher.pulses_debug_count += len(shproto.dispatcher.pulses_buf)
-            print("elapsed: {} cps: {}/{:.2f} total_pkts: {} drop_pkts: {} lostImp: {} cpu: {} dgb_pulses: {}".format(
-               shproto.dispatcher.total_time, shproto.dispatcher.cps, spec_pulses_total_cps,
-               shproto.dispatcher.total_pkts, shproto.dispatcher.dropped,
-               shproto.dispatcher.lost_impulses, shproto.dispatcher.cpu_load,
-               shproto.dispatcher.pulses_debug_count))
             with open(filename, "w") as fd:
                 fd.seek(0)
 
@@ -236,14 +230,26 @@ def process_01(filename):
                     fd.writelines("{}, {}\n".format(i + 1, shproto.dispatcher.histogram[i]))
                 fd.flush()
                 fd.truncate()
-
-                if len(shproto.dispatcher.pulses_buf) > 0 and shproto.dispatcher.pulse_file_opened != 1 and (fd_pulses := open("/tmp/pulses.csv", "w+")):
+                with shproto.dispatcher.histogram_lock:
+                    pulses = shproto.dispatcher.pulses_buf
+                    shproto.dispatcher.pulses_debug_count += len(shproto.dispatcher.pulses_buf)
+                    shproto.dispatcher.pulses_buf = []
+                if len(pulses) > 0 and shproto.dispatcher.pulse_file_opened != 1 and (fd_pulses := open("/tmp/pulses.csv", "w+")):
                     shproto.dispatcher.pulse_file_opened = 1
                 if shproto.dispatcher.pulse_file_opened == 1:
-                    for pulse in shproto.dispatcher.pulses_buf:
+                    for pulse in pulses:
                         fd_pulses.writelines("{}\n".format(' '.join("{:d}".format(p) for p in  pulse )))
                     fd_pulses.flush()
-                shproto.dispatcher.pulses_buf = []
+
+            print("elapsed: {}/{:.0f} cps: {}/{:.2f} total_pkts: {} drop_pkts: {} lostImp: {} cpu: {} dbg_pulses: {}".format(
+               shproto.dispatcher.total_time, (datetime.now(timezone.utc) - shproto.dispatcher.start_timestamp).total_seconds(),
+               shproto.dispatcher.cps, spec_pulses_total_cps,
+               shproto.dispatcher.total_pkts, shproto.dispatcher.dropped,
+               shproto.dispatcher.lost_impulses, shproto.dispatcher.cpu_load,
+               shproto.dispatcher.pulses_debug_count))
+    if (fd_pulses):
+        fd_pulses.close()
+        shproto.dispatcher.pulse_file_opened = 0
 
     print("Stop collecting spectrum")
 
