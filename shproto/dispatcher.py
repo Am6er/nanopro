@@ -38,12 +38,13 @@ inf_str = ''
 
 max_pulses_buf = 10000
 pulses_buf = []
-pulses_buf_lock = threading.Lock()
+pulse_file_opened = 0
+pulses_debug_count = 0
 
 
 
 def start(sn=None):
-    pulse_file_opened = 2
+    shproto.dispatcher.pulse_file_opened = 2
     # READ_BUFFER = 1
     READ_BUFFER = 4096
     # READ_BUFFER = 2048
@@ -83,7 +84,6 @@ def start(sn=None):
                 continue
             shproto.dispatcher.total_pkts += 1
             if response.cmd == shproto.MODE_TEXT:
-                print("<< got text")
                 shproto.dispatcher.pkts03 += 1
                 resp_decoded = bytes(response.payload[:len(response.payload) - 2])
                 resp_lines = []
@@ -95,7 +95,11 @@ def start(sn=None):
                         shproto.dispatcher.inf_str = re.sub(r'\[[^]]*\]', '...', shproto.dispatcher.inf_str, count = 2)
                 except UnicodeDecodeError:
                     print("Unknown non-text response.")
-                print("<< {}".format(resp_decoded))
+                if (not re.search('^mi.*index.*', resp_decoded)):
+                    # mi 5423 s 2 index 1388 integ 2900 mx 457 th 14 count 16 proc_case 3 from 5416 to 5432 pm 1 ):
+                    print("<< got text")
+                    print("<< {}".format(resp_decoded))
+                    # print("pulse: {}".format(resp_decoded))
                 if len(resp_lines) == 40:
                     shproto.dispatcher.serial_number = resp_lines[39];
                     print("got detector serial num: {}".format(shproto.dispatcher.serial_number))
@@ -123,70 +127,47 @@ def start(sn=None):
             elif response.cmd == shproto.MODE_HISTOGRAM:
                 #print("<< got histogram")
                 shproto.dispatcher.pkts01 += 1
-                offset = response.payload[0] & 0xFF | ((response.payload[1] & 0xFF) << 8)
+                # offset = response.payload[0] & 0xFF | ((response.payload[1] & 0xFF) << 8)
+                offset = unpack("<H", bytes(response.payload[0:2]))[0]
                 count = int((response.len - 2) / 4)
                 ## print("histogram count: {} offset: {}".format(count, offset))
                 with shproto.dispatcher.histogram_lock:
-                    for i in range(0, count):
-                        index = offset + i
-                        if index < len(shproto.dispatcher.histogram):
-                            value = (response.payload[i * 4 + 2]) | \
-                                    ((response.payload[i * 4 + 3]) << 8) | \
-                                    ((response.payload[i * 4 + 4]) << 16) | \
-                                    ((response.payload[i * 4 + 5]) << 24)
-                            shproto.dispatcher.histogram[index] = value & 0x7FFFFFF
+                    format_unpack_str = "<{}I".format(count)
+                    shproto.dispatcher.histogram[offset:offset+count-1] = list(unpack(format_unpack_str, bytes(response.payload[2:count*4+2])))
                 response.clear()
             elif response.cmd == shproto.MODE_PULSE:
-                if pulse_file_opened != 1:
-                    # fd_pulses = open("/home/bag/nanopro/pulses.csv", "w+")
-                    fd_pulses = open("/tmp/pulses.csv", "w+")
-                    # print("file /home/bag/nanopro/pulses.csv open return", fd_pulses)
-                    print("file /tmp/pulses.csv open return", fd_pulses)
-                    pulse_file_opened = 1
-
                 #print("<< got pulse", fd_pulses)
                 shproto.dispatcher.pkts01 += 1
-                offset = response.payload[0] & 0xFF | ((response.payload[1] & 0xFF) << 8)
+                # offset = response.payload[0] & 0xFF | ((response.payload[1] & 0xFF) << 8)
+                offset = unpack("<H", bytes(response.payload[0:2]))[0]
                 count = int((response.len - 2) / 2)
                 format_unpack_str = "<{}H".format(count)
                 format_print_str = "{}{:d}:d{}".format("{", count, "}")
-                pulse = []
-                pulse1 = list(unpack(format_unpack_str, bytes(response.payload[:count*2])))
-                str3 = ' '.join("{:d}".format(p) for p in  pulse1)
-                print("format: {} {} pulse unpack: {}".format(format_unpack_str, format_print_str, str3))
-                for i in range(0, count):
-                    index = offset + i
-                    if index < len(shproto.dispatcher.histogram):
-                        value = (response.payload[i * 2 + 2]) | \
-                                ((response.payload[i * 2 + 3]) << 8)
-                        pulse = pulse + [(value & 0x7FFFFFF)]
-                    fd_pulses.writelines("{:d} ".format(value & 0x7FFFFFF))
-                fd_pulses.writelines("\n")
-                fd_pulses.flush()
+                pulse = list(unpack(format_unpack_str, bytes(response.payload[2:count*2+2])))
+                # str3 = ' '.join("{:d}".format(p) for p in  pulse1)
+                # print("format: {} {} pulse unpack: {}".format(format_unpack_str, format_print_str, str3))
+                # for i in range(0, count):
+                #     index = offset + i
+                #     if index < len(shproto.dispatcher.histogram):
+                #         value = (response.payload[i * 2 + 2]) | \
+                #                 ((response.payload[i * 2 + 3]) << 8)
+                #         pulse = pulse + [(value & 0x7FFFFFF)]
+                #     fd_pulses.writelines("{:d} ".format(value & 0x7FFFFFF))
+                if len(shproto.dispatcher.pulses_buf) < max_pulses_buf:
+                    with shproto.dispatcher.histogram_lock:
+                        shproto.dispatcher.pulses_buf.append(pulse)
                 # print("len: ", count, "shape: ", pulse)
                 response.clear()
             elif response.cmd == shproto.MODE_STAT:
                 # print("<< got stat")
                 shproto.dispatcher.pkts04 += 1
-                shproto.dispatcher.total_time = (response.payload[0] & 0xFF) | \
-                                                ((response.payload[1] & 0xFF) << 8) | \
-                                                ((response.payload[2] & 0xFF) << 16) | \
-                                                ((response.payload[3] & 0xFF) << 24)
-                shproto.dispatcher.cpu_load = (response.payload[4] & 0xFF) | ((response.payload[5] & 0xFF) << 8)
-                shproto.dispatcher.cps = (response.payload[6] & 0xFF) | \
-                                         ((response.payload[7] & 0xFF) << 8) | \
-                                         ((response.payload[8] & 0xFF) << 16) | \
-                                         ((response.payload[9] & 0xFF) << 24)
+                shproto.dispatcher.total_time = unpack("<I", bytes(response.payload[0:4]))[0]
+                shproto.dispatcher.cpu_load = unpack("<H", bytes(response.payload[4:6]))[0]
+                shproto.dispatcher.cps = unpack("<I", bytes(response.payload[6:10]))[0]
                 if response.len >= (11 + 2):
-                    shproto.dispatcher.lost_impulses = (response.payload[10] & 0xFF) | \
-                                                       ((response.payload[11] & 0xFF) << 8) | \
-                                                       ((response.payload[12] & 0xFF) << 16) | \
-                                                       ((response.payload[13] & 0xFF) << 24)
+                    shproto.dispatcher.lost_impulses = unpack("<I", bytes(response.payload[10:14]))[0]
                 if response.len >= (15 + 2):
-                    shproto.dispatcher.total_pulse_width = (response.payload[14] & 0xFF) | \
-                                                       ((response.payload[15] & 0xFF) << 8) | \
-                                                       ((response.payload[16] & 0xFF) << 16) | \
-                                                       ((response.payload[17] & 0xFF) << 24)
+                    shproto.dispatcher.total_pulse_width = unpack("<I", bytes(response.payload[14:18]))[0]
                 #print("stat elapsed: {} cps: {} total: {} lost: {} cpu: {} total_pulse_width: {}".format(
                 #    shproto.dispatcher.total_time, shproto.dispatcher.cps, shproto.dispatcher.total_pkts,
                 #    shproto.dispatcher.lost_impulses, shproto.dispatcher.cpu_load, shproto.dispatcher.total_pulse_width))
@@ -207,15 +188,19 @@ def process_01(filename):
         time.sleep(1)
         if timer == 5:
             timer = 0
+            for i in range(0,len(shproto.dispatcher.histogram)-1):
+                shproto.dispatcher.histogram[i] = shproto.dispatcher.histogram[i] & 0x7FFFFFF
             spec_pulses_total = sum(shproto.dispatcher.histogram)
             spec_pulses_total_cps = 0
             spec_timestamp = datetime.now(timezone.utc) - + timedelta(seconds=shproto.dispatcher.total_time)
             if shproto.dispatcher.total_time > 0:
                 spec_pulses_total_cps = float(spec_pulses_total) / float(shproto.dispatcher.total_time)
-            print("elapsed: {} cps: {}/{:.2f} total_pkts: {} drop_pkts: {} lostImp: {} cpu: {}".format(
+            shproto.dispatcher.pulses_debug_count += len(shproto.dispatcher.pulses_buf)
+            print("elapsed: {} cps: {}/{:.2f} total_pkts: {} drop_pkts: {} lostImp: {} cpu: {} dgb_pulses: {}".format(
                shproto.dispatcher.total_time, shproto.dispatcher.cps, spec_pulses_total_cps,
                shproto.dispatcher.total_pkts, shproto.dispatcher.dropped,
-               shproto.dispatcher.lost_impulses, shproto.dispatcher.cpu_load))
+               shproto.dispatcher.lost_impulses, shproto.dispatcher.cpu_load,
+               shproto.dispatcher.pulses_debug_count))
             with open(filename, "w") as fd:
                 fd.seek(0)
 
@@ -251,6 +236,15 @@ def process_01(filename):
                     fd.writelines("{}, {}\n".format(i + 1, shproto.dispatcher.histogram[i]))
                 fd.flush()
                 fd.truncate()
+
+                if len(shproto.dispatcher.pulses_buf) > 0 and shproto.dispatcher.pulse_file_opened != 1 and (fd_pulses := open("/tmp/pulses.csv", "w+")):
+                    shproto.dispatcher.pulse_file_opened = 1
+                if shproto.dispatcher.pulse_file_opened == 1:
+                    for pulse in shproto.dispatcher.pulses_buf:
+                        fd_pulses.writelines("{}\n".format(' '.join("{:d}".format(p) for p in  pulse )))
+                    fd_pulses.flush()
+                shproto.dispatcher.pulses_buf = []
+
     print("Stop collecting spectrum")
 
 
