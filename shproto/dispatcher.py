@@ -36,13 +36,19 @@ serial_number = ""
 calibration = [0., 1., 0., 0., 0.]
 inf_str = ''
 
+max_pulses_buf = 10000
+pulses_buf = []
+pulses_buf_lock = threading.Lock()
+
+
 
 def start(sn=None):
     pulse_file_opened = 2
     # READ_BUFFER = 1
+    READ_BUFFER = 4096
     # READ_BUFFER = 2048
-    READ_BUFFER = 2048
     # READ_BUFFER = 8192
+    # READ_BUFFER = 65536
     shproto.dispatcher.clear()
     with shproto.dispatcher.stopflag_lock:
         shproto.dispatcher.stopflag = 0
@@ -142,7 +148,12 @@ def start(sn=None):
                 shproto.dispatcher.pkts01 += 1
                 offset = response.payload[0] & 0xFF | ((response.payload[1] & 0xFF) << 8)
                 count = int((response.len - 2) / 2)
+                format_unpack_str = "<{}H".format(count)
+                format_print_str = "{}{:d}:d{}".format("{", count, "}")
                 pulse = []
+                pulse1 = list(unpack(format_unpack_str, bytes(response.payload[:count*2])))
+                str3 = ' '.join("{:d}".format(p) for p in  pulse1)
+                print("format: {} {} pulse unpack: {}".format(format_unpack_str, format_print_str, str3))
                 for i in range(0, count):
                     index = offset + i
                     if index < len(shproto.dispatcher.histogram):
