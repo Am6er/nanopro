@@ -132,8 +132,12 @@ def start(sn=None):
                 count = int((response.len - 2) / 4)
                 ## print("histogram count: {} offset: {}".format(count, offset))
                 with shproto.dispatcher.histogram_lock:
-                    format_unpack_str = "<{}I".format(count)
-                    shproto.dispatcher.histogram[offset:offset+count-1] = list(unpack(format_unpack_str, bytes(response.payload[2:count*4+2])))
+                    if (offset <= 8192 and offset+count <= 8192):
+                        format_unpack_str = "<{}I".format(count)
+                        
+                        shproto.dispatcher.histogram[offset:offset+count] = list(unpack(format_unpack_str, bytes(response.payload[2:count*4+2])))
+                    else:
+                        print("histogram index is out of range: {} - {} c:{}".format(offset, offset+count, offset+count))
                 response.clear()
             elif response.cmd == shproto.MODE_PULSE:
                 #print("<< got pulse", fd_pulses)
@@ -188,9 +192,9 @@ def process_01(filename):
         time.sleep(1)
         if timer == 5:
             timer = 0
-            #for i in range(0,len(shproto.dispatcher.histogram)-1):
-            #    shproto.dispatcher.histogram[i] = shproto.dispatcher.histogram[i] & 0x7FFFFFF
-            spec_pulses_total = sum(shproto.dispatcher.histogram)
+            with shproto.dispatcher.histogram_lock:
+                histogram = shproto.dispatcher.histogram
+            spec_pulses_total = sum(histogram)
             spec_pulses_total_cps = 0
             spec_timestamp = datetime.now(timezone.utc) - timedelta(seconds=shproto.dispatcher.total_time)
             if shproto.dispatcher.total_time > 0:
@@ -225,9 +229,10 @@ def process_01(filename):
                     shproto.dispatcher.serial_number,shproto.dispatcher.serial_number))
                 fd.writelines("starttime, {}\n".format(spec_timestamp.strftime("%Y-%m-%dT%H:%M:%S+00:00")))
                 fd.writelines("ch,data\n")
-
-                for i in range(0, 8192):
-                    fd.writelines("{}, {}\n".format(i + 1, shproto.dispatcher.histogram[i]))
+                if len(histogram) > 8192:
+                    print("histogram len too long {}".format(len(histogram)))
+                for i in range(0, len(histogram)):
+                    fd.writelines("{}, {}\n".format(i + 1, histogram[i]))
                 fd.flush()
                 fd.truncate()
                 with shproto.dispatcher.histogram_lock:
