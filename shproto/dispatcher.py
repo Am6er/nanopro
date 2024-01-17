@@ -214,7 +214,7 @@ def process_01(filename):
                 # 1.2MHz fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(0, 1.61E-06, 0.3185, -7.64))
                 # 1.2MHz fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(0, 1.8E-06, 0.3185, -7.64))
                 fd.writelines(
-                    "remark, elapsed: {:d}H:{:02d}m/{:5d}s/{:.2f}m cps: {:7.2f} total_pulses: {} total_pkts: {} drop_pkts: {} lostImp: {}\n".format(
+                    "remark, elapsed: {:d}H:{:02d}m/{:d}s/{:.2f}m cps: {:7.2f} total_pulses: {} total_pkts: {} drop_pkts: {} lostImp: {}\n".format(
                         int(shproto.dispatcher.total_time/3600), int((shproto.dispatcher.total_time%3600)/60),
                         shproto.dispatcher.total_time, 
                         shproto.dispatcher.total_time/60.,
