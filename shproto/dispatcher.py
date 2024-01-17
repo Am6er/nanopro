@@ -5,6 +5,7 @@ from datetime import datetime, timezone, timedelta
 from struct import *
 import binascii
 import re
+import xml.etree.ElementTree as ET
 
 import shproto
 import shproto.port
@@ -42,6 +43,12 @@ pulse_file_opened = 0
 pulses_debug_count = 0
 
 start_timestamp = datetime.now(timezone.utc)
+
+xml_out = 1
+csv_out = 1
+
+verbose = 1
+interspec_csv = 1
 
 def start(sn=None):
     shproto.dispatcher.pulse_file_opened = 2
@@ -92,6 +99,7 @@ def start(sn=None):
                     resp_lines = resp_decoded.splitlines()
                     if re.search('^VERSION', resp_decoded):
                         shproto.dispatcher.inf_str = resp_decoded
+                        shproto.dispatcher.inf_str = shproto.dispatcher.inf_str.rstrip()
                         shproto.dispatcher.inf_str = re.sub(r'\[[^]]*\]', '...', shproto.dispatcher.inf_str, count = 2)
                 except UnicodeDecodeError:
                     print("Unknown non-text response.")
@@ -183,6 +191,10 @@ def start(sn=None):
 
 
 def process_01(filename):
+    filename_pulses = re.sub(r'\.csv$', '', filename, flags=re.IGNORECASE)
+    filename_pulses = filename_pulses + "_pulses.dat"
+    filename_xml = re.sub(r'\.csv$', '', filename, flags=re.IGNORECASE)
+    filename_xml = filename_xml + ".xml"
     timer = 0
     print("Start writing spectrum to file: {}".format(filename))
     with shproto.dispatcher.spec_stopflag_lock:
@@ -199,52 +211,55 @@ def process_01(filename):
             spec_timestamp = datetime.now(timezone.utc) - timedelta(seconds=shproto.dispatcher.total_time)
             if shproto.dispatcher.total_time > 0:
                 spec_pulses_total_cps = float(spec_pulses_total) / float(shproto.dispatcher.total_time)
-            with open(filename, "w") as fd:
-                fd.seek(0)
+                if shproto.dispatcher.csv_out:
+                    with open(filename, "w") as fd:
+                        if shproto.dispatcher.interspec_csv:
+                            fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(
+                                shproto.dispatcher.calibration[3],
+                                shproto.dispatcher.calibration[2],
+                                shproto.dispatcher.calibration[1],
+                                shproto.dispatcher.calibration[0]))
+                            fd.writelines(
+                                "remark, elapsed: {:d}H:{:02d}m/{:d}s/{:.2f}m cps: {:7.2f} total_pulses: {} total_pkts: {} drop_pkts: {} lostImp: {}\n".format(
+                                    int(shproto.dispatcher.total_time/3600), int((shproto.dispatcher.total_time%3600)/60),
+                                    shproto.dispatcher.total_time, 
+                                    shproto.dispatcher.total_time/60.,
+                                    spec_pulses_total_cps, spec_pulses_total, shproto.dispatcher.total_pkts,
+                                    shproto.dispatcher.dropped, shproto.dispatcher.lost_impulses
+                                    ))
+                            if shproto.dispatcher.inf_str != "":
+                                fd.writelines("remark, inf: {}\n".format(shproto.dispatcher.inf_str))
+                            fd.writelines("livetime, {}\n".format(shproto.dispatcher.total_time))
+                            fd.writelines("realtime, {}\n".format(shproto.dispatcher.total_time))
+                            fd.writelines("detectorname,nano15-8k-{}\nSerialNumber,nano15-8k-{}\n".format(
+                                shproto.dispatcher.serial_number,shproto.dispatcher.serial_number))
+                            fd.writelines("starttime, {}\n".format(spec_timestamp.strftime("%Y-%m-%dT%H:%M:%S+00:00")))
+                            fd.writelines("ch,data\n")
+                        if len(histogram) > 8192:
+                            print("histogram len too long {}".format(len(histogram)))
+                        for i in range(0, len(histogram)):
+                            fd.writelines("{}, {}\n".format(i + 1, histogram[i]))
+    
+                    with shproto.dispatcher.histogram_lock:
+                        pulses = shproto.dispatcher.pulses_buf
+                        shproto.dispatcher.pulses_debug_count += len(shproto.dispatcher.pulses_buf)
+                        shproto.dispatcher.pulses_buf = []
+                    if len(pulses) > 0 and shproto.dispatcher.pulse_file_opened != 1 and (fd_pulses := open(filename_pulses, "w+")):
+                        shproto.dispatcher.pulse_file_opened = 1
+                    if shproto.dispatcher.pulse_file_opened == 1:
+                        for pulse in pulses:
+                            fd_pulses.writelines("{}\n".format(' '.join("{:d}".format(p) for p in  pulse )))
+                        fd_pulses.flush()
 
-                # 1MHz fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(0, 2.98307E-06, 0.378484, -9.78218))
-                # fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(0, 1.364E-06, 0.386, -12))	# 1MHz r7 f7 n14 
-                # fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(0, 2.127E-06, 0.3827, -8.5))	# 1MHz r7 f7 n14 NoTHR
-                fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(
-                    shproto.dispatcher.calibration[3],
-                    shproto.dispatcher.calibration[2],
-                    shproto.dispatcher.calibration[1],
-                    shproto.dispatcher.calibration[0]))
-                # 1.2MHz fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(0, 2.21E-06, 0.316, -2))
-                # 1.2MHz fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(0, 1.61E-06, 0.3185, -7.64))
-                # 1.2MHz fd.writelines("calibcoeff : a={} b={} c={} d={}\n".format(0, 1.8E-06, 0.3185, -7.64))
-                fd.writelines(
-                    "remark, elapsed: {:d}H:{:02d}m/{:d}s/{:.2f}m cps: {:7.2f} total_pulses: {} total_pkts: {} drop_pkts: {} lostImp: {}\n".format(
-                        int(shproto.dispatcher.total_time/3600), int((shproto.dispatcher.total_time%3600)/60),
-                        shproto.dispatcher.total_time, 
-                        shproto.dispatcher.total_time/60.,
-                        spec_pulses_total_cps, spec_pulses_total, shproto.dispatcher.total_pkts,
-                        shproto.dispatcher.dropped, shproto.dispatcher.lost_impulses
-                        ))
-                if shproto.dispatcher.inf_str != "":
-                    fd.writelines("remark, inf: {}".format(shproto.dispatcher.inf_str))
-                fd.writelines("livetime, {}\n".format(shproto.dispatcher.total_time))
-                fd.writelines("realtime, {}\n".format(shproto.dispatcher.total_time))
-                fd.writelines("detectorname,nano15-8k-{}\nSerialNumber,nano15-8k-{}\n".format(
-                    shproto.dispatcher.serial_number,shproto.dispatcher.serial_number))
-                fd.writelines("starttime, {}\n".format(spec_timestamp.strftime("%Y-%m-%dT%H:%M:%S+00:00")))
-                fd.writelines("ch,data\n")
-                if len(histogram) > 8192:
-                    print("histogram len too long {}".format(len(histogram)))
-                for i in range(0, len(histogram)):
-                    fd.writelines("{}, {}\n".format(i + 1, histogram[i]))
-                fd.flush()
-                fd.truncate()
-                with shproto.dispatcher.histogram_lock:
-                    pulses = shproto.dispatcher.pulses_buf
-                    shproto.dispatcher.pulses_debug_count += len(shproto.dispatcher.pulses_buf)
-                    shproto.dispatcher.pulses_buf = []
-                if len(pulses) > 0 and shproto.dispatcher.pulse_file_opened != 1 and (fd_pulses := open("/tmp/pulses.csv", "w+")):
-                    shproto.dispatcher.pulse_file_opened = 1
-                if shproto.dispatcher.pulse_file_opened == 1:
-                    for pulse in pulses:
-                        fd_pulses.writelines("{}\n".format(' '.join("{:d}".format(p) for p in  pulse )))
-                    fd_pulses.flush()
+                if shproto.dispatcher.xml_out:
+                    xml = build_xml(histogram, shproto.dispatcher.calibration, shproto.dispatcher.total_time, 
+                        spec_timestamp, datetime.now(timezone.utc), shproto.dispatcher.serial_number, shproto.dispatcher.inf_str)
+                    ET.indent(xml)
+                    xml_str = ET.tostring(xml, encoding="utf-8", method="xml", xml_declaration=True)
+                    with open(filename_xml, "w") as fd:
+                        fd.write(xml_str.decode(encoding="utf-8"))
+
+
 
             print("elapsed: {}/{:.0f} cps: {}/{:.2f} total_pkts: {} drop_pkts: {} lostImp: {} cpu: {} dbg_pulses: {}".format(
                shproto.dispatcher.total_time, (datetime.now(timezone.utc) - shproto.dispatcher.start_timestamp).total_seconds(),
@@ -257,6 +272,69 @@ def process_01(filename):
         shproto.dispatcher.pulse_file_opened = 0
 
     print("Stop collecting spectrum")
+
+def build_xml(histogram, calibration, elapsed, start, end, dev_serialno, comment):
+    calibration_filtered = []
+    for i in range(len(calibration), 0, -1):
+        if calibration[i-1] != 0:
+            break
+    calibration = calibration[0:i]
+    #et = xml.etree.ElementTree('ResultDataFile')
+    ns = {"xmlns:xsd":"http://www.w3.org/2001/XMLSchema", "xmlns:xsi":"http://www.w3.org/2001/XMLSchema-instance"}
+    xmlroot = ET.Element("ResultDataFile", ns)
+    FormatVersion = ET.SubElement(xmlroot, "FormatVersion")
+    FormatVersion.text = "test"
+    ResultDataList = ET.SubElement(xmlroot, "ResultDataList")
+    ResultData = ET.SubElement(ResultDataList, "ResultData")
+    SampleInfo = ET.SubElement(ResultData, "SampleInfo")
+    SampleName = ET.SubElement(SampleInfo, "Name")
+    SampleNote = ET.SubElement(SampleInfo, "Note")
+    SampleNote.text = comment
+    DeviceConfigReference = ET.SubElement(ResultData, "DeviceConfigReference")
+    DeviceConfigReferenceName = ET.SubElement(DeviceConfigReference, "Name")
+    DeviceConfigReferenceName.text = "nanopro-{}".format(dev_serialno)
+    BackgroundSpectrumFile = ET.SubElement(ResultData, "BackgroundSpectrumFile")
+    StartTime = ET.SubElement(ResultData, "StartTime")
+    StartTime.text = "{}".format(start.strftime("%Y-%m-%dT%H:%M:%S+00:00"))
+    EndTime = ET.SubElement(ResultData, "EndTime")
+    EndTime.text = "{}".format(end.strftime("%Y-%m-%dT%H:%M:%S+00:00"))
+
+    EnergySpectrum = ET.SubElement(ResultData, "EnergySpectrum")
+
+    EnergySpectrum_NumberOfChannels = ET.SubElement(EnergySpectrum, "NumberOfChannels");
+    EnergySpectrum_NumberOfChannels.text = "{:d}".format(len(histogram))
+    EnergySpectrum_ChannelPitch = ET.SubElement(EnergySpectrum, "ChannelPitch");
+    EnergySpectrum_ChannelPitch.text = "1"
+    EnergySpectrum_SpectrumName = ET.SubElement(EnergySpectrum, "SpectrumName");
+    EnergySpectrum_SpectrumName.text = "spectrum {} {:d}".format(end.strftime("%Y-%m-%dT%H:%M:%S+00:00"), elapsed)
+    EnergySpectrum_Comment = ET.SubElement(EnergySpectrum, "Comment");
+    EnergySpectrum_Comment.text = comment
+
+    EnergySpectrum_EnergyCalibration = ET.SubElement(EnergySpectrum, "EnergyCalibration");
+    PolynomialOrder = ET.SubElement(EnergySpectrum_EnergyCalibration, "PolynomialOrder");
+    PolynomialOrder.text = "{}".format(len(calibration) - 1)
+    Coefficients = ET.SubElement(EnergySpectrum_EnergyCalibration, "Coefficients");
+    for val in calibration:
+        Coefficient = ET.SubElement(Coefficients, "Coefficient")
+        Coefficient.text = "{}".format(val)
+    EnergySpectrum_MeasurementTime = ET.SubElement(EnergySpectrum, "MeasurementTime")
+    EnergySpectrum_MeasurementTime.text = "{}".format(elapsed)
+    EnergySpectrum_ValidPulseCount = ET.SubElement(EnergySpectrum, "ValidPulseCount")
+    EnergySpectrum_ValidPulseCount.text = "{}".format(sum(histogram))
+
+    Spectrum = ET.SubElement(EnergySpectrum, "Spectrum")
+    for val in histogram:
+        DataPoint = ET.SubElement(Spectrum, "DataPoint")
+        DataPoint.text = "{}".format(val)
+
+    ResultData_Visible = ET.SubElement(ResultData, "Visible")
+    ResultData_Visible.text = "true"
+    ResultData_PulseCollection = ET.SubElement(ResultData, "PulseCollection")
+    ResultData_PulseCollection_Format = ET.SubElement(ResultData_PulseCollection, "Format")
+    ResultData_PulseCollection_Format.text = "Base64 encoded binary"
+    ResultData_PulseCollection_Pulses = ET.SubElement(ResultData_PulseCollection, "Pulses")
+
+    return(xmlroot)
 
 
 def stop():
@@ -287,3 +365,4 @@ def clear():
         shproto.dispatcher.lost_impulses = 0
         shproto.dispatcher.total_pulse_width = 0
         shproto.dispatcher.dropped = 0
+
