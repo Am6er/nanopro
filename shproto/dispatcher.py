@@ -49,6 +49,7 @@ csv_out = 1
 
 verbose = 1
 interspec_csv = 1
+verbose = 1
 
 def start(sn=None):
     shproto.dispatcher.pulse_file_opened = 2

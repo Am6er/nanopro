@@ -3,12 +3,12 @@ import shproto.alert
 import time
 import threading
 import re
+import argparse
+import os
 from datetime import datetime, timezone, timedelta
 
-# spec_dir = "/home/amber/Git/nanopro/"
-spec_dir = "/home/bag/nanopro/"
-# spec_dir = "/Users/bag/Dropbox/spectrum/nanopro/"
-spec_file = spec_dir + "spectrum.csv"
+spec_dir = os.environ["HOME"] + "/nanopro/"
+#spec_file = spec_dir + "spectrum.csv"
 
 shproto.dispatcher.start_timestamp = datetime.now(timezone.utc)
 
@@ -39,6 +39,8 @@ def helptxt():
             Alert mode stop.
         stat
             Show statistics while spectra gathering
+        rst 
+            send "-rst", "-cal", "-inf"
         spd <number>
             Set port speed to <number>
         quit or exit
@@ -50,6 +52,51 @@ def helptxt():
 
 if __name__ == '__main__':
     helptxt()
+
+    parser = argparse.ArgumentParser(
+        prog='ProgramName',
+        description='What the program does',
+        epilog='Text at the bottom of help')
+    parser.add_argument('file', default='spectrum.csv')
+    parser.add_argument('-d', '--device', default='')
+    parser.add_argument('-c', '--csv', action='store_true')
+    parser.add_argument('-i', '--interpec_csv', action='store_true')
+    parser.add_argument('-x', '--xml', action='store_true')
+    parser.add_argument('-a', '--autostart', action='store_true')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+    if not args.device == '':
+        shproto.port.getportbyserialnumber(args.device)
+    if re.search("^[/\.].*", args.file):
+        spec_file = args.file
+    else:
+        spec_file = spec_dir + args.file
+    if not re.search("\.csv$", spec_file, flags=re.IGNORECASE):
+        spec_file = spec_file + ".csv"
+    if args.csv:
+        shproto.dispatcher.csv_out = 1
+    else:
+        shproto.dispatcher.csv_out = 0
+    if args.xml:
+        shproto.dispatcher.xml_out = 1
+    else:
+        shproto.dispatcher.xml_out = 0
+    if args.interpec_csv:
+        shproto.dispatcher.csv_out = 1
+        shproto.dispatcher.interspec_csv = 1
+    else:
+        shproto.dispatcher.interspec_csv = 0
+    if args.autostart:
+        autostart = 1
+    else:
+        autostart = 0
+    if args.verbose:
+        shproto.dispatcher.verbose = 1
+    else:
+        shproto.dispatcher.verbose = 1
+
+
     print("Found devices: {}".format(shproto.port.getallportsastext()))
     dispatcher = threading.Thread(target=shproto.dispatcher.start)
     dispatcher.start()
@@ -59,7 +106,9 @@ if __name__ == '__main__':
     alert = threading.Thread(target=shproto.alert.alertmode, args=(spec_dir, 1.5,))
     shproto.alert.alert_stop = 1
     command = ""
-    auto_command = "spec_sta"
+    auto_command = ""
+    if autostart:
+        auto_command = "spec_sta"
     while True:
         if auto_command != "":
             command = auto_command
@@ -115,11 +164,12 @@ if __name__ == '__main__':
                 dispatcher.start()
                 time.sleep(1)
                 continue
-            if command in shproto.port.getallportssn():
+            if command in shproto.port.getallportssn() or re.match("^/", command):
                 print("Connect to device: {}".format(shproto.port.getportbyserialnumber(command)))
                 shproto.dispatcher.stop()
                 with shproto.dispatcher.stopflag_lock:
                     shproto.dispatcher.stopflag = 0
+                dispatcher = threading.Thread(target=shproto.dispatcher.start)
                 dispatcher.start()
                 time.sleep(1)
                 continue

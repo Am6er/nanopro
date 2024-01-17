@@ -2,6 +2,7 @@ import serial
 import serial.tools.list_ports
 import shproto
 import re
+import os
 
 port_speed = 600000
 
@@ -43,6 +44,8 @@ def getportbyserialnumber(sn):
 def getdevicebyserialnumber(sn):
     port = getportbyserialnumber(sn)
     if port is None:
+        if re.match("^/", sn) and os.path.exists(sn):
+            return sn
         return None
     else:
         return getportbyserialnumber(sn).device
