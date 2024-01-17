@@ -39,6 +39,8 @@ def helptxt():
             Alert mode stop.
         stat
             Show statistics while spectra gathering
+        spd <number>
+            Set port speed to <number>
         quit or exit
             Exits terminal
             
