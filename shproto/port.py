@@ -62,6 +62,6 @@ def connectdevice(sn=None):
     print("port {} speed {}".format(nanoport, shproto.port.port_speed))
     # tty = serial.Serial(nanoport, baudrate=600000, bytesize=8, parity='N', stopbits=1, timeout=1)
     # tty = serial.Serial(nanoport, baudrate=115200, bytesize=8, parity='N', stopbits=1, timeout=1)
-    tty = serial.Serial(nanoport, baudrate=shproto.port.port_speed, bytesize=8, parity='N', stopbits=1, timeout=1)
+    tty = serial.Serial(nanoport, baudrate=shproto.port.port_speed, bytesize=8, parity='N', stopbits=1, timeout=0.1)
     # tty = serial.Serial(nanoport, baudrate=38400, bytesize=8, parity='N', stopbits=1, timeout=0.05)
     return tty

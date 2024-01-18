@@ -125,11 +125,15 @@ if __name__ == '__main__':
             if command == "rst":
                 shproto.dispatcher.process_03("-rst")
                 time.sleep(2)
+                with shproto.dispatcher.hide_next_responce_lock:
+                    shproto.dispatcher.hide_next_responce = True
                 shproto.dispatcher.process_03("-cal")
                 time.sleep(2)
                 shproto.dispatcher.process_03("-inf")
                 continue
             if command == "spec_sta":
+                with shproto.dispatcher.hide_next_responce_lock:
+                    shproto.dispatcher.hide_next_responce = True
                 shproto.dispatcher.process_03("-cal")
                 time.sleep(2)
                 shproto.dispatcher.process_03("-inf")

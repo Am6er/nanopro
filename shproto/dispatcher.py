@@ -50,6 +50,8 @@ csv_out = 1
 verbose = 1
 interspec_csv = 1
 verbose = 1
+hide_next_responce = False
+hide_next_responce_lock  = threading.Lock()
 
 def start(sn=None):
     shproto.dispatcher.pulse_file_opened = 2
@@ -77,9 +79,9 @@ def start(sn=None):
             nano.write(tx_packet.payload)
             with shproto.dispatcher.command_lock:
                 shproto.dispatcher.command = ""
-        if nano.in_waiting == 0:
-            time.sleep(0.05)
-            continue
+#        if nano.in_waiting == 0:
+#            time.sleep(0.05)
+#            continue
         READ_BUFFER = max(nano.in_waiting, READ_BUFFER)
         rx_byte_arr = nano.read(size=READ_BUFFER)
         # print("rx_byte_arr len = {}/{}".format(len(rx_byte_arr),READ_BUFFER))
@@ -104,11 +106,13 @@ def start(sn=None):
                         shproto.dispatcher.inf_str = re.sub(r'\[[^]]*\]', '...', shproto.dispatcher.inf_str, count = 2)
                 except UnicodeDecodeError:
                     print("Unknown non-text response.")
-                if (not re.search('^mi.*index.*', resp_decoded)):
+                if (not shproto.dispatcher.hide_next_responce and not re.search('^mi.*index.*', resp_decoded)):
                     # mi 5423 s 2 index 1388 integ 2900 mx 457 th 14 count 16 proc_case 3 from 5416 to 5432 pm 1 ):
                     print("<< got text")
                     print("<< {}".format(resp_decoded))
                     # print("pulse: {}".format(resp_decoded))
+                with shproto.dispatcher.hide_next_responce_lock:
+                    shproto.dispatcher.hide_next_responce = False
                 if len(resp_lines) == 40:
                     shproto.dispatcher.serial_number = resp_lines[39];
                     print("got detector serial num: {}".format(shproto.dispatcher.serial_number))
@@ -255,7 +259,7 @@ def process_01(filename):
                 if shproto.dispatcher.xml_out:
                     xml = build_xml(histogram, shproto.dispatcher.calibration, shproto.dispatcher.total_time, 
                         spec_timestamp, datetime.now(timezone.utc), shproto.dispatcher.serial_number, shproto.dispatcher.inf_str)
-                    ET.indent(xml)
+                    ET.indent(xml, space=' ')
                     xml_str = ET.tostring(xml, encoding="utf-8", method="xml", xml_declaration=True)
                     with open(filename_xml, "w") as fd:
                         fd.write(xml_str.decode(encoding="utf-8"))
