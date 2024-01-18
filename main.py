@@ -158,7 +158,7 @@ if __name__ == '__main__':
                 alert = threading.Thread(target=shproto.alert.alertmode, args=(spec_dir, 1.5,))
                 continue
             m = re.search("^(spd|speed)\s+(\S+)", command)
-            if m.group(2) is not None:
+            if m is not None:
                 shproto.port.port_speed = m.group(2)
                 print("port speed set to {}... reconnect".format(shproto.port.port_speed))
                 shproto.dispatcher.stop()

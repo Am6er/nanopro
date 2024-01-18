@@ -4,14 +4,15 @@ import shproto
 import re
 import os
 
-port_speed = 600000
+port_speed = 115200
+
 
 def getallports():
     allports = serial.tools.list_ports.comports()
     nanoports = []
     for port in allports:
         if port.manufacturer == "FTDI" or re.search("^/dev/ttyUSB.*", port.device):
-            #print("getallports: {}".format(port.device))
+            # print("getallports: {}".format(port.device))
             nanoports.append(port)
     return nanoports
 
