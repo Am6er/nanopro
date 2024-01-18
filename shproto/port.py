@@ -4,7 +4,7 @@ import shproto
 import re
 import os
 
-port_speed = 115200
+port_speed = 600000
 
 
 def getallports():

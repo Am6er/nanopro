@@ -103,7 +103,7 @@ def start(sn=None):
                     if re.search('^VERSION', resp_decoded):
                         shproto.dispatcher.inf_str = resp_decoded
                         shproto.dispatcher.inf_str = shproto.dispatcher.inf_str.rstrip()
-                        shproto.dispatcher.inf_str = re.sub(r'\[[^]]*\]', '...', shproto.dispatcher.inf_str, count=2)
+                        shproto.dispatcher.inf_str = re.sub(r'\[[^]]*]', '...', shproto.dispatcher.inf_str, count=2)
                 except UnicodeDecodeError:
                     print("Unknown non-text response.")
                 if not shproto.dispatcher.hide_next_responce and not re.search('^mi.*index.*', resp_decoded):
@@ -133,18 +133,13 @@ def start(sn=None):
                             unpack('d', int((resp_lines[6] + resp_lines[7]), 16).to_bytes(8, 'little'))[0]
                         shproto.dispatcher.calibration[4] = \
                             unpack('d', int((resp_lines[8] + resp_lines[9]), 16).to_bytes(8, 'little'))[0]
-                        print("got calibration: {}".format(shproto.dispatcher.calibration)
-                              )
-                    #
+                        print("got calibration: {}".format(shproto.dispatcher.calibration))
                     else:
                         print("wrong crc for calibration values got: {:08x} expected: {:08x}".format(
                             int(resp_lines[10], 16), crc))
-                    #
-                    #
 
                 response.clear()
             elif response.cmd == shproto.MODE_HISTOGRAM:
-                # print("<< got histogram")
                 shproto.dispatcher.pkts01 += 1
                 # offset = response.payload[0] & 0xFF | ((response.payload[1] & 0xFF) << 8)
                 offset = unpack("<H", bytes(response.payload[0:2]))[0]
@@ -201,6 +196,7 @@ def start(sn=None):
                 print("Wtf received: cmd:{}\r\npayload: {}".format(response.cmd, response.payload))
                 response.clear()
     nano.close()
+    print("Close port")
 
 
 def process_01(filename):

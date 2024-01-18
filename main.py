@@ -162,6 +162,7 @@ if __name__ == '__main__':
                 shproto.port.port_speed = m.group(2)
                 print("port speed set to {}... reconnect".format(shproto.port.port_speed))
                 shproto.dispatcher.stop()
+                time.sleep(1)
                 with shproto.dispatcher.stopflag_lock:
                     shproto.dispatcher.stopflag = 0
                 dispatcher = threading.Thread(target=shproto.dispatcher.start)
@@ -171,6 +172,7 @@ if __name__ == '__main__':
             if command in shproto.port.getallportssn() or re.match("^/", command):
                 print("Connect to device: {}".format(shproto.port.getportbyserialnumber(command)))
                 shproto.dispatcher.stop()
+                time.sleep(1)
                 with shproto.dispatcher.stopflag_lock:
                     shproto.dispatcher.stopflag = 0
                 dispatcher = threading.Thread(target=shproto.dispatcher.start)
